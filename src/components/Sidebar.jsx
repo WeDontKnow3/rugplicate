@@ -109,8 +109,8 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
         <div className="sidebar-top">
           <div className="logo">CS</div>
           <div className="sidebar-title">
-            <div className="header-title">CoinSim</div>
-            <div className="header-sub">AMM Simulator</div>
+            <div className="header-title">Rugplicate</div>
+            <div className="header-sub">by zt01</div>
           </div>
         </div>
 
