@@ -76,7 +76,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
   }, []);
 
   // ---------------- WebSocket live trades logic ----------------
-  const WS_URL = import.meta.env.VITE_WS_URL || "ws://devsite-backend-production.up.railway.app";
+  const WS_URL = import.meta.env.VITE_WS_URL || "wss://devsite-backend-production.up.railway.app/ws";
   const MAX_TRADES = 6;
 
   function pushTrade(t) {
