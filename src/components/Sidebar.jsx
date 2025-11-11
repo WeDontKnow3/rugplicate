@@ -2,15 +2,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import * as api from '../api';
 
 /**
- * Sidebar.jsx (EN)
- * Lightweight, responsive sidebar
+ * Sidebar.jsx (EN) — with Live Trades panel
  *
- * Props:
- * - view: current view string (e.g. 'market', 'portfolio', ...)
- * - onNavigate(view): function called when a nav item is clicked
- * - onLogout(): optional callback when user logs out
- * - open: boolean (mobile open state)
- * - setOpen: function to control mobile open state
+ * Adds a small live trades window between the admin/settings nav item and the tokens count.
+ * The live feed uses a WebSocket URL from `import.meta.env.VITE_WS_URL` (recommended).
+ * If VITE_WS_URL is not set, the panel will show a disabled message.
+ *
+ * Expected incoming websocket message format (JSON):
+ * { type: 'trade', coin: 'ABC', side: 'buy'|'sell', tokenAmount: 12345, usdAmount: 12.34, price: 0.000001, created_at: 'ISO' }
  */
 
 export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
@@ -19,6 +18,11 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
   const [balanceAnim, setBalanceAnim] = useState(null); // 'up'|'down'|null
   const prevBalanceRef = useRef(null);
   const pollRef = useRef(null);
+
+  // live trades state
+  const [trades, setTrades] = useState([]); // newest first
+  const wsRef = useRef(null);
+  const reconnectRef = useRef({ attempts: 0, timeout: null });
 
   function navigate(to) {
     if (onNavigate && typeof onNavigate === 'function') onNavigate(to);
@@ -44,7 +48,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
         setMe(null);
       }
     } catch (err) {
-      // ignore network errors silently
+      // silently ignore network errors
     } finally {
       setLoading(false);
     }
@@ -66,9 +70,93 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       document.removeEventListener('visibilitychange', handleVisibility);
+      stopWebsocket();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---------------- WebSocket live trades logic ----------------
+  const WS_URL = import.meta.env.VITE_WS_URL || null;
+  const MAX_TRADES = 6;
+
+  function pushTrade(t) {
+    setTrades(prev => {
+      const next = [t, ...prev].slice(0, MAX_TRADES);
+      return next;
+    });
+  }
+
+  function startWebsocket() {
+    if (!WS_URL) return;
+    try {
+      stopWebsocket();
+      const ws = new WebSocket(WS_URL);
+      wsRef.current = ws;
+
+      ws.addEventListener('open', () => {
+        reconnectRef.current.attempts = 0;
+        // optionally subscribe to a channel (protocol depends on your server)
+        // ws.send(JSON.stringify({ action: 'subscribe', channel: 'trades' }));
+      });
+
+      ws.addEventListener('message', (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+          // accept either direct trade objects or messages with type
+          if (data && (data.type === 'trade' || data.event === 'trade')) {
+            const t = {
+              coin: data.coin || data.symbol || data.token || 'UNKNOWN',
+              side: data.side || data.type === 'sell' ? 'sell' : (data.side || 'buy'),
+              tokenAmount: Number(data.tokenAmount || data.token_amount || data.amount || 0),
+              usdAmount: Number(data.usdAmount || data.usd_amount || data.usd || 0),
+              price: Number(data.price || 0),
+              created_at: data.created_at || data.ts || new Date().toISOString()
+            };
+            pushTrade(t);
+          } else if (data && data.type === 'pong') {
+            // ignore
+          }
+        } catch (e) {
+          // ignore malformed messages
+          console.warn('ws parse error', e);
+        }
+      });
+
+      ws.addEventListener('close', () => scheduleReconnect());
+      ws.addEventListener('error', () => {
+        try { ws.close(); } catch(_){}
+      });
+    } catch (e) {
+      scheduleReconnect();
+    }
+  }
+
+  function scheduleReconnect() {
+    // exponential backoff up to a limit
+    const r = reconnectRef.current;
+    r.attempts = (r.attempts || 0) + 1;
+    const delay = Math.min(30000, 500 * Math.pow(2, Math.min(r.attempts, 6)) );
+    if (r.timeout) clearTimeout(r.timeout);
+    r.timeout = setTimeout(() => {
+      startWebsocket();
+    }, delay);
+  }
+
+  function stopWebsocket() {
+    if (reconnectRef.current.timeout) { clearTimeout(reconnectRef.current.timeout); reconnectRef.current.timeout = null; }
+    if (wsRef.current) {
+      try { wsRef.current.close(); } catch (e) {}
+      wsRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    if (WS_URL) startWebsocket();
+    return () => stopWebsocket();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [WS_URL]);
+
+  // ---------------- end websocket ----------------
 
   const tokensCount = (me && Array.isArray(me.tokens)) ? me.tokens.reduce((s, t) => s + Number(t.amount || 0), 0) : 0;
 
@@ -83,6 +171,13 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
     else window.location.reload();
   }
 
+  function fmtTime(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleTimeString();
+    } catch (e) { return iso; }
+  }
+
   return (
     <>
       {/* Mobile overlay when sidebar is open */}
@@ -94,10 +189,10 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
 
       <aside className={`sidebar ${open ? 'open' : 'closed'}`} aria-expanded={open}>
         <div className="sidebar-top">
-          <div className="logo">ZT</div>
+          <div className="logo">CS</div>
           <div className="sidebar-title">
-            <div className="header-title">Rugplicate</div>
-            <div className="header-sub">by zt01</div>
+            <div className="header-title">CoinSim</div>
+            <div className="header-sub">AMM Simulator</div>
           </div>
         </div>
 
@@ -113,6 +208,33 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
             <NavItem active={view === 'admin'} label="Admin" onClick={() => navigate('admin')} icon={'♛'} className="admin-item" />
           )}
         </nav>
+
+        {/* ---------------- Live trades panel ---------------- */}
+        <div className="live-trades-card" style={{ marginTop: 10, marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ fontWeight: 800 }}>Live Trades</div>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>{WS_URL ? 'connected' : 'no feed'}</div>
+          </div>
+
+          {WS_URL ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {trades.length === 0 ? (
+                <div className="muted">Waiting for trades...</div>
+              ) : (
+                trades.map((t, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ minWidth: 72, fontWeight: 700 }}>{t.coin}</div>
+                    <div style={{ flex: 1, fontSize: 13, color: '#94a3b8' }}>{t.side === 'sell' ? 'sell' : 'buy'} • {Number(t.tokenAmount).toLocaleString()}</div>
+                    <div style={{ minWidth: 70, textAlign: 'right', fontWeight: 700 }}>{t.price ? `$${Number(t.price).toFixed(6)}` : `$${Number(t.usdAmount || 0).toFixed(2)}`}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="muted">No websocket configured. Set VITE_WS_URL to enable live trades.</div>
+          )}
+        </div>
+        {/* ---------------- end live trades ---------------- */}
 
         <div className="sidebar-bottom">
           {me ? (
@@ -151,7 +273,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
 function NavItem({ active, label, onClick, icon, className = '' }) {
   return (
     <button className={`nav-item ${active ? 'active' : ''} ${className}`} onClick={onClick}>
-      <span className="nav-icon" aria-hidden="true">{icon}</span>
+      <span className="nav-icon" aria-hidden>{icon}</span>
       <span className="nav-label">{label}</span>
     </button>
   );
