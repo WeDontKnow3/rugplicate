@@ -241,3 +241,15 @@
 [data-theme=light] .card{border-color:var(--border)}
 [data-theme=light] .page-title,[data-theme=light] h1,[data-theme=light] h2,[data-theme=light] h3,[data-theme=light] h4{color:var(--text-primary)!important}
 [data-theme=light] .muted{color:var(--text-secondary)}
+[data-theme=light]{
+  --bg-start:#ffffff;
+  --bg-end:#ffffff;
+  --text-primary:#000000;
+  --text-secondary:#64748b;
+  --card:#ffffff;
+  --glass:rgba(0,0,0,0.04);
+  --border:#4b4b4b;
+  --accent:#000000;
+  --accent-2:#111111;
+  --muted:#64748b;
+}
