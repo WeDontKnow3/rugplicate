@@ -173,6 +173,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
           <NavItem active={view === 'dashboard'} label="Dashboard" onClick={() => navigate('dashboard')} icon={'≡'} />
           <NavItem active={view === 'create'} label="Create Coin" onClick={() => navigate('create')} icon={'＋'} />
           <NavItem active={view === 'leaderboard'} label="Leaderboard" onClick={() => navigate('leaderboard')} icon={'★'} />
+          <NavItem active={view === 'gambling'} label="Gambling — IMPORTANT" onClick={() => navigate('gambling')} icon={'🎰'} className="danger-btn" />
           <NavItem active={view === 'settings'} label="Settings" onClick={() => navigate('settings')} icon={'⚙'} />
 
           {me && me.is_admin && (
