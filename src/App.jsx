@@ -10,6 +10,7 @@ import AdminPanel from './components/AdminPanel';
 import Leaderboard from './components/Leaderboard';
 import Sidebar from './components/Sidebar';
 import Settings from './components/Settings';
+import Gambling from './components/Gambling';
 
 let animId = 1;
 
@@ -152,7 +153,7 @@ export default function App() {
               {view === 'settings' && 'Settings'}
               {view === 'admin' && 'Admin Panel'}
               {view === 'promos' && 'Promos'}
-              {view === 'gambling' && 'Gambling'}
+              {view === 'gambling' && 'Gambling — IMPORTANT'}
             </h1>
           </div>
 
@@ -234,10 +235,7 @@ export default function App() {
           )}
 
           {user && view === 'gambling' && (
-            <div className="card danger-zone">
-              <h2>Gambling — IMPORTANT</h2>
-              <p>This area contains high-risk gambling features. Users should understand the risks before participating. Use responsibly and within your limits.</p>
-            </div>
+            <Gambling onBack={() => setView('market')} onActionComplete={handleActionComplete} />
           )}
         </main>
 
