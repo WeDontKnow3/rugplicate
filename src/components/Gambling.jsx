@@ -137,7 +137,7 @@ export default function Gambling({ onBack, onActionComplete }) {
       `}</style>
 
       <div className="top-row">
-        <h2 style={{ margin: 0 }}>Coin Flip — IMPORTANT</h2>
+        <h2 style={{ margin: 0 }}>Coin Flip</h2>
         <div>
           <button className="btn ghost" onClick={onBack}>Back</button>
         </div>
