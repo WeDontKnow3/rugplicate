@@ -50,6 +50,15 @@ export async function getMe(){
   }
 }
 
+export async function getCoinHolders(symbol){
+  try{
+    const res = await fetch(`${API_BASE}/api/coins/${encodeURIComponent(symbol)}/holders`);
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
 export async function listCoins(){
   try{
     const res = await fetch(`${API_BASE}/api/coins`);
