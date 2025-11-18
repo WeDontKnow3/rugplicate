@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as api from '../api';
+import headImg from '../assets/coin-head.png';
+import tailImg from '../assets/coin-tail.png';
 
 const MIN_BET = 1;
 const MAX_BET = 1000000;
-const HEAD_IMG = '/assets/coin-head.png';
-const TAIL_IMG = '/assets/coin-tail.png';
 const ANIM_DURATION = 1800;
 
 export default function Gambling({ onBack, onActionComplete }) {
@@ -15,7 +15,6 @@ export default function Gambling({ onBack, onActionComplete }) {
   const [result, setResult] = useState(null);
   const [flipping, setFlipping] = useState(false);
   const [landSide, setLandSide] = useState(null);
-  const coinRef = useRef(null);
   const animTimerRef = useRef(null);
 
   useEffect(() => {
@@ -107,15 +106,12 @@ export default function Gambling({ onBack, onActionComplete }) {
         }
         .coin.land-head{transform:rotateY(0deg) translateY(120px) !important}
         .coin.land-tail{transform:rotateY(180deg) translateY(120px) !important}
-        .coin-shadow{width:80px;height:10px;border-radius:50%;background:rgba(0,0,0,0.25);transition:transform .35s, opacity .35s;margin-top:-12px}
-        .coin-shadow.small{transform:scale(.6);opacity:.35}
-        .coin-shadow.big{transform:scale(1);opacity:1}
         .controls{display:flex;gap:8px;align-items:center}
         @media (max-width:480px){ .coin-wrapper{width:88px;height:88px} .coin{width:72px;height:72px} }
       `}</style>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ margin: 0 }}>Coin Flip</h2>
+        <h2 style={{ margin: 0 }}>Coin Flip — IMPORTANT</h2>
         <div>
           <button className="btn ghost" onClick={onBack}>Back</button>
         </div>
@@ -156,17 +152,16 @@ export default function Gambling({ onBack, onActionComplete }) {
 
         <div className="coin-wrapper" aria-hidden>
           <div
-            ref={coinRef}
             className={`coin ${flipping ? 'spin' : ''} ${landSide ? (landSide === 'heads' ? 'land-head' : 'land-tail') : ''}`}
             style={{ top: 0 }}
           >
             <div
               className="coin-face front"
-              style={{ backgroundImage: `url(${HEAD_IMG})`, boxShadow: 'inset 0 -6px 12px rgba(0,0,0,0.08)' }}
+              style={{ backgroundImage: `url(${headImg})` }}
             />
             <div
               className="coin-face back"
-              style={{ backgroundImage: `url(${TAIL_IMG})`, boxShadow: 'inset 0 -6px 12px rgba(0,0,0,0.08)' }}
+              style={{ backgroundImage: `url(${tailImg})` }}
             />
           </div>
         </div>
