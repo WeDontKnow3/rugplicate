@@ -153,7 +153,7 @@ export default function App() {
               {view === 'settings' && 'Settings'}
               {view === 'admin' && 'Admin Panel'}
               {view === 'promos' && 'Promos'}
-              {view === 'gambling' && 'Gambling — IMPORTANT'}
+              {view === 'gambling' && 'Gambling'}
             </h1>
           </div>
 
