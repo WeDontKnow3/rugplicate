@@ -15,11 +15,13 @@ let animId = 1;
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('market'); // market | dashboard | create | detail | portfolio | leaderboard | admin | settings | promos
+  const [view, setView] = useState('market');
   const [selectedCoin, setSelectedCoin] = useState(null);
   const [balance, setBalance] = useState(null);
-  const [moneyAnims, setMoneyAnims] = useState([]); // {id, amount, type}
+  const [moneyAnims, setMoneyAnims] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [dailyStatus, setDailyStatus] = useState(null);
+  const [claimingDaily, setClaimingDaily] = useState(false);
 
   async function loadMe() {
     try {
@@ -37,7 +39,24 @@ export default function App() {
     }
   }
 
-  useEffect(() => { loadMe(); }, []);
+  async function loadDailyStatus() {
+    try {
+      const res = await api.getDailyStatus();
+      setDailyStatus(res);
+    } catch (err) {
+      setDailyStatus(null);
+    }
+  }
+
+  useEffect(() => { 
+    loadMe();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadDailyStatus();
+    }
+  }, [user]);
 
   function onLogin(token) {
     if (token) {
@@ -57,7 +76,6 @@ export default function App() {
     const id = animId++;
     const entry = { id, amount: Number(amount), type };
     setMoneyAnims(a => [...a, entry]);
-    // remove after 1100ms
     setTimeout(() => {
       setMoneyAnims(a => a.filter(x => x.id !== id));
     }, 1100);
@@ -71,15 +89,38 @@ export default function App() {
     if (!opts.keepView) setView('market');
   }
 
-  // navigation helper
   function handleNavigate(v) {
     setView(v);
     if (window.innerWidth < 900) setSidebarOpen(false); 
   }
 
+  async function handleClaimDaily() {
+    if (claimingDaily || !dailyStatus?.can_claim) return;
+    setClaimingDaily(true);
+    try {
+      const res = await api.claimDailyReward();
+      if (res.ok) {
+        triggerMoneyAnimation(res.amount, 'up');
+        await loadMe();
+        await loadDailyStatus();
+      }
+    } catch (err) {
+      console.error('Failed to claim daily:', err);
+    } finally {
+      setClaimingDaily(false);
+    }
+  }
+
+  function formatTimeRemaining(seconds) {
+    if (!seconds || seconds <= 0) return 'Ready!';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  }
+
   return (
     <div className="app-wrapper">
-      {/* SIDEBAR (separate component) */}
       <Sidebar
         view={view}
         onNavigate={handleNavigate}
@@ -88,9 +129,7 @@ export default function App() {
         setOpen={setSidebarOpen}
       />
 
-      {/* MAIN CONTENT */}
       <div className="main-content">
-        {/* TOPBAR */}
         <header className="topbar">
           <button
             className={`hamburger ${sidebarOpen ? 'open' : ''}`}
@@ -117,11 +156,20 @@ export default function App() {
           </div>
 
           <div className="topbar-right">
-            <div className="header-balance">
-              {user ? `${Number(balance || 0).toFixed(2)}` : '—'}
-            </div>
+            {user && dailyStatus && (
+              <button 
+                className={`daily-reward-btn ${dailyStatus.can_claim ? 'ready' : 'waiting'}`}
+                onClick={handleClaimDaily}
+                disabled={!dailyStatus.can_claim || claimingDaily}
+                title={dailyStatus.can_claim ? 'Claim your daily reward!' : `Next reward in ${formatTimeRemaining(dailyStatus.seconds_until_next)}`}
+              >
+                <span className="daily-icon">🎁</span>
+                <span className="daily-text">
+                  {dailyStatus.can_claim ? 'Claim Daily' : formatTimeRemaining(dailyStatus.seconds_until_next)}
+                </span>
+              </button>
+            )}
 
-            {/* Logout button */}
             {user && (
               <button className="logout-btn-topbar" onClick={onLogout} title="Logout">
                 <span className="logout-icon">⎋</span>
@@ -129,7 +177,6 @@ export default function App() {
               </button>
             )}
 
-            {/* Money animation container */}
             <div className="money-anim-container">
               {moneyAnims.map(a => (
                 <MoneyAnim key={a.id} amount={a.amount} type={a.type} />
@@ -138,7 +185,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* PAGE CONTENT */}
         <main className="page-content">
           {!user && <Auth onLogin={onLogin} />}
 
@@ -187,7 +233,6 @@ export default function App() {
           )}
         </main>
 
-        {/* FOOTER */}
         <footer className="app-footer">
           <small>by zt01 - discord community soon.</small>
         </footer>
