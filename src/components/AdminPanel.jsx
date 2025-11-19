@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import * as api from '../api';
+import { useTranslation } from 'react-i18next';
 
 export default function AdminPanel() {
+  const { t } = useTranslation();
   const [me, setMe] = useState(null);
   const [tab, setTab] = useState('users'); // 'users' | 'coins' | 'db'
   const [users, setUsers] = useState([]);
