@@ -110,7 +110,7 @@
   "create.coinCreated": "Coin created with initial price 0.000001 and 1,000,000,000 tokens in the pool",
   "create.createError": "Error creating coin (see console)",
   "create.networkError": "Network error creating coin (see console)",
-  "create.insufficientBalanceShort": "Insufficient balance: need $1,100 to create."
+  "create.insufficientBalanceShort": "Insufficient balance: need $1,100 to create.",
 
   "dashboard": "Dashboard",
   "loading": "Loading...",
