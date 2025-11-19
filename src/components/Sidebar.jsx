@@ -166,7 +166,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
           <NavItem active={view === 'leaderboard'} label="Leaderboard" onClick={() => navigate('leaderboard')} icon="leaderboard" />
           <NavItem active={view === 'gambling'} label="Gambling" onClick={() => navigate('gambling')} icon="gambling" />
           <NavItem active={view === 'settings'} label="Settings" onClick={() => navigate('settings')} icon="settings" />
-          {me && (
+          {me && me.is_admin && (
             <NavItem active={view === 'admin'} label="Admin" onClick={() => navigate('admin')} icon="admin" />
           )}
         </nav>
