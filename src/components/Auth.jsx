@@ -9,6 +9,8 @@ export default function Auth({ onLogin }) {
   const [msg, setMsg] = useState('');
   const [captchaToken, setCaptchaToken] = useState(null);
 
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITEKEY;
+
   async function submit(e) {
     e.preventDefault();
     setMsg('');
@@ -62,12 +64,16 @@ export default function Auth({ onLogin }) {
           onChange={e => setPassword(e.target.value)} 
           required 
         />
-        {mode === 'register' && import.meta.env.VITE_RECAPTCHA_SITEKEY && (
+        {mode === 'register' && (
           <div style={{ marginTop: '10px', marginBottom: '10px' }}>
-            <ReCAPTCHA 
-              sitekey={import.meta.env.VITE_RECAPTCHA_SITEKEY} 
-              onChange={token => setCaptchaToken(token)} 
-            />
+            {recaptchaSiteKey ? (
+              <ReCAPTCHA 
+                sitekey={recaptchaSiteKey} 
+                onChange={token => setCaptchaToken(token)} 
+              />
+            ) : (
+              <p style={{ color: 'red' }}>reCAPTCHA key not configured</p>
+            )}
           </div>
         )}
         <button type="submit">{mode === 'login' ? 'Login' : 'Register'}</button>
