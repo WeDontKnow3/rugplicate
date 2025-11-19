@@ -11,10 +11,13 @@ import Leaderboard from './components/Leaderboard';
 import Sidebar from './components/Sidebar';
 import Settings from './components/Settings';
 import Gambling from './components/Gambling';
+import { useTranslation } from 'react-i18next';
 
 let animId = 1;
 
 export default function App() {
+  const { t } = useTranslation();
+
   const [user, setUser] = useState(null);
   const [view, setView] = useState('market');
   const [selectedCoin, setSelectedCoin] = useState(null);
@@ -113,7 +116,7 @@ export default function App() {
   }
 
   function formatTimeRemaining(seconds) {
-    if (!seconds || seconds <= 0) return 'Ready!';
+    if (!seconds || seconds <= 0) return t('ready');
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     if (hours > 0) return `${hours}h ${minutes}m`;
@@ -135,7 +138,7 @@ export default function App() {
           <button
             className={`hamburger ${sidebarOpen ? 'open' : ''}`}
             onClick={() => setSidebarOpen(s => !s)}
-            aria-label="Toggle menu"
+            aria-label={t('toggleMenu')}
           >
             <span></span>
             <span></span>
@@ -144,16 +147,19 @@ export default function App() {
 
           <div className="topbar-center">
             <h1 className="page-title">
-              {view === 'market' && 'Market'}
-              {view === 'portfolio' && 'Portfolio'}
-              {view === 'dashboard' && 'Dashboard'}
-              {view === 'create' && 'Create Coin'}
-              {view === 'detail' && (selectedCoin ? `Coin: ${selectedCoin}` : 'Coin')}
-              {view === 'leaderboard' && 'Leaderboard'}
-              {view === 'settings' && 'Settings'}
-              {view === 'admin' && 'Admin Panel'}
-              {view === 'promos' && 'Promos'}
-              {view === 'gambling' && 'Gambling'}
+              {view === 'market' && t('market')}
+              {view === 'portfolio' && t('portfolio')}
+              {view === 'dashboard' && t('dashboard')}
+              {view === 'create' && t('createCoin')}
+              {view === 'detail' &&
+                (selectedCoin
+                  ? t('coinPrefix', { selectedCoin })
+                  : t('coin'))}
+              {view === 'leaderboard' && t('leaderboard')}
+              {view === 'settings' && t('settings')}
+              {view === 'admin' && t('adminPanel')}
+              {view === 'promos' && t('promos')}
+              {view === 'gambling' && t('gambling')}
             </h1>
           </div>
 
@@ -163,19 +169,31 @@ export default function App() {
                 className={`daily-reward-btn ${dailyStatus.can_claim ? 'ready' : 'waiting'}`}
                 onClick={handleClaimDaily}
                 disabled={!dailyStatus.can_claim || claimingDaily}
-                title={dailyStatus.can_claim ? 'Claim your daily reward!' : `Next reward in ${formatTimeRemaining(dailyStatus.seconds_until_next)}`}
+                title={
+                  dailyStatus.can_claim
+                    ? t('dailyReadyTitle')
+                    : t('dailyWaitingTitle', {
+                        time: formatTimeRemaining(dailyStatus.seconds_until_next)
+                      })
+                }
               >
                 <span className="daily-icon">🎁</span>
                 <span className="daily-text">
-                  {dailyStatus.can_claim ? 'Claim Daily' : formatTimeRemaining(dailyStatus.seconds_until_next)}
+                  {dailyStatus.can_claim
+                    ? t('claimDaily')
+                    : formatTimeRemaining(dailyStatus.seconds_until_next)}
                 </span>
               </button>
             )}
 
             {user && (
-              <button className="logout-btn-topbar" onClick={onLogout} title="Logout">
+              <button
+                className="logout-btn-topbar"
+                onClick={onLogout}
+                title={t('logout')}
+              >
                 <span className="logout-icon">⎋</span>
-                <span className="logout-text">Logout</span>
+                <span className="logout-text">{t('logout')}</span>
               </button>
             )}
 
@@ -240,7 +258,7 @@ export default function App() {
         </main>
 
         <footer className="app-footer">
-          <small>by zt01 - discord community soon.</small>
+          <small>{t('footer')}</small>
         </footer>
       </div>
     </div>
