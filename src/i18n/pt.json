@@ -110,5 +110,14 @@
   "create.coinCreated": "Coin criada com preço inicial 0.000001 e 1.000.000.000 tokens na pool",
   "create.createError": "Erro ao criar coin (ver console)",
   "create.networkError": "Erro de rede ao criar coin (ver console)",
-  "create.insufficientBalanceShort": "Saldo insuficiente: precisa de $1,100 para criar."
+  "create.insufficientBalanceShort": "Saldo insuficiente: precisa de $1,100 para criar.",
+
+  "dashboard": "Dashboard",
+  "loading": "Carregando...",
+  "usd_balance": "Saldo USD",
+  "tokens": "Tokens",
+  "no_tokens": "Sem tokens",
+  "transactions": "Transações",
+  "no_transactions": "Nenhuma transação"
+
 }
