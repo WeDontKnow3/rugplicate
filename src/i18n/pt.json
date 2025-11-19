@@ -166,5 +166,10 @@
   "tokensText": "{{amount}} tokens",
 
   "genericErrorInvalidJson": "invalid_json_response",
-  "genericErrorNetwork": "network_error"
+  "genericErrorNetwork": "network_error",
+
+  "editBalance": "Editar Saldo",
+  "enterNewBalance": "Digite o novo saldo para {{user}}:",
+  "invalidBalance": "Valor de saldo inválido",
+  "balanceUpdated": "Saldo atualizado para {{user}}"
 }
