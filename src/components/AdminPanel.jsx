@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 export default function AdminPanel() {
   const { t } = useTranslation();
   const [me, setMe] = useState(null);
-  const [tab, setTab] = useState('users'); // 'users' | 'coins' | 'db'
+  const [tab, setTab] = useState('users'); 
   const [users, setUsers] = useState([]);
   const [coins, setCoins] = useState([]);
   const [dbText, setDbText] = useState('');
@@ -35,7 +35,7 @@ export default function AdminPanel() {
     if (r && r.db) {
       setDbText(JSON.stringify(r.db, null, 2));
     } else {
-      setDbText('// erro ao buscar DB: ' + (r && r.error ? r.error : 'unknown'));
+      setDbText('// ' + t('errorFetchingDB') + ': ' + (r && r.error ? r.error : 'unknown'));
     }
   }
 
@@ -49,108 +49,115 @@ export default function AdminPanel() {
     if (tab === 'db') loadDB();
   }, [tab]);
 
-  if (!me) return <div className="page"><div className="card">Loading...</div></div>;
-  if (!me.is_admin) return <div className="page"><div className="card" style={{color:'#fda4af'}}>Access denied — admin only.</div></div>;
+  if (!me) return <div className="page"><div className="card">{t('loading')}</div></div>;
+  if (!me.is_admin) return <div className="page"><div className="card" style={{color:'#fda4af'}}>{t('accessDenied')}</div></div>;
 
   async function toggleBan(user) {
-    const confirmMsg = user.is_banned ? `Unban ${user.username}?` : `Ban ${user.username}?`;
+    const confirmMsg = user.is_banned ? t('unbanUser', { user: user.username }) : t('banUser', { user: user.username });
     if (!window.confirm(confirmMsg)) return;
     setLoading(true); setMsg('');
     const r = await api.adminBanUser(user.id, !user.is_banned);
     if (r && r.ok) {
-      setMsg(`User ${user.username} updated.`);
+      setMsg(t('userUpdated', { user: user.username }));
       await loadUsers();
-    } else setMsg(r && r.error ? r.error : 'Erro');
+    } else setMsg(r && r.error ? r.error : t('error'));
     setLoading(false);
   }
 
   async function deleteUser(user) {
-    if (!window.confirm(`Delete user ${user.username} and all their data? This cannot be undone.`)) return;
+    if (!window.confirm(t('deleteUserConfirm', { user: user.username }))) return;
     setLoading(true); setMsg('');
     const r = await api.adminDeleteUser(user.id);
     if (r && r.ok) {
-      setMsg(`User ${user.username} deleted.`);
+      setMsg(t('userDeleted', { user: user.username }));
       await loadUsers();
-    } else setMsg(r && r.error ? r.error : 'Erro');
+    } else setMsg(r && r.error ? r.error : t('error'));
     setLoading(false);
   }
 
   async function deleteCoin(coin) {
-    if (!window.confirm(`Delete coin ${coin.symbol}? This removes its transactions and user balances.`)) return;
+    if (!window.confirm(t('deleteCoinConfirm', { symbol: coin.symbol }))) return;
     setLoading(true); setMsg('');
     const r = await api.adminDeleteCoin(coin.id);
     if (r && r.ok) {
-      setMsg(`Coin ${coin.symbol} deleted.`);
+      setMsg(t('coinDeleted', { symbol: coin.symbol }));
       await loadCoins();
-    } else setMsg(r && r.error ? r.error : 'Erro');
+    } else setMsg(r && r.error ? r.error : t('error'));
     setLoading(false);
   }
 
   async function editCoin(coin) {
-    const newName = window.prompt('New name for coin ' + coin.symbol, coin.name || '');
+    const newName = window.prompt(t('newCoinName', { symbol: coin.symbol }), coin.name || '');
     if (newName === null) return;
-    const newPoolBase = window.prompt('pool_base (number)', String(coin.pool_base || 0));
+    const newPoolBase = window.prompt(t('enterPoolBase'), String(coin.pool_base || 0));
     if (newPoolBase === null) return;
+
     setLoading(true); setMsg('');
     const patch = { name: newName, pool_base: Number(newPoolBase) };
     const r = await api.adminUpdateCoin(coin.id, patch);
+
     if (r && r.ok) {
-      setMsg(`Coin ${coin.symbol} updated.`);
+      setMsg(t('coinUpdated', { symbol: coin.symbol }));
       await loadCoins();
-    } else setMsg(r && r.error ? r.error : 'Erro');
+    } else setMsg(r && r.error ? r.error : t('error'));
     setLoading(false);
   }
 
   async function saveDb() {
-    if (!window.confirm('Replace entire DB with this content? A backup will be created before replacing.')) return;
+    if (!window.confirm(t('replaceDBConfirm'))) return;
     setLoading(true); setMsg('');
     let payload;
     try {
       payload = JSON.parse(dbText);
     } catch (e) {
-      setMsg('JSON inválido: ' + e.message);
+      setMsg(t('invalidJSON') + ': ' + e.message);
       setLoading(false);
       return;
     }
     const r = await api.adminReplaceDB(payload);
+
     if (r && r.ok) {
-      setMsg('DB replaced. Reloading lists...');
+      setMsg(t('dbReplaced'));
       await loadUsers();
       await loadCoins();
       await loadDB();
-    } else setMsg(r && r.error ? r.error : 'Erro');
+    } else setMsg(r && r.error ? r.error : t('error'));
     setLoading(false);
   }
 
   return (
     <div className="page">
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
-        <h2 style={{margin:0}}>Admin Panel</h2>
-        <div style={{fontSize:13, color:'#bfc7d6'}}>Admin: {me.username}</div>
+        <h2 style={{margin:0}}>{t('adminPanel')}</h2>
+        <div style={{fontSize:13, color:'#bfc7d6'}}>{t('admin')}: {me.username}</div>
       </div>
 
       <div style={{display:'flex', gap:8, marginBottom:10}}>
-        <button className={`nav-btn ${tab==='users'?'active':''}`} onClick={()=>setTab('users')}>Users</button>
-        <button className={`nav-btn ${tab==='coins'?'active':''}`} onClick={()=>setTab('coins')}>Coins</button>
-        <button className={`nav-btn ${tab==='db'?'active':''}`} onClick={()=>setTab('db')}>DB Editor</button>
+        <button className={`nav-btn ${tab==='users'?'active':''}`} onClick={()=>setTab('users')}>{t('users')}</button>
+        <button className={`nav-btn ${tab==='coins'?'active':''}`} onClick={()=>setTab('coins')}>{t('coins')}</button>
+        <button className={`nav-btn ${tab==='db'?'active':''}`} onClick={()=>setTab('db')}>{t('dbEditor')}</button>
       </div>
 
       {msg && <div className="msg" style={{marginBottom:12}}>{msg}</div>}
-      {loading && <div className="muted" style={{marginBottom:12}}>Processing...</div>}
+      {loading && <div className="muted" style={{marginBottom:12}}>{t('processing')}</div>}
 
       {tab === 'users' && (
         <div className="card">
-          <h3>Users ({users.length})</h3>
+          <h3>{t('users')} ({users.length})</h3>
           <div style={{display:'flex', flexDirection:'column', gap:8}}>
             {users.map(u => (
               <div key={u.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.02)'}}>
                 <div>
-                  <div style={{fontWeight:800}}>{u.username} {u.is_admin ? <span className="muted" style={{fontSize:12}}> (admin)</span> : null}</div>
-                  <div className="muted" style={{fontSize:13}}>id: {u.id} • $ {Number(u.usd_balance).toFixed(2)} • banned: {u.is_banned ? 'yes' : 'no'}</div>
+                  <div style={{fontWeight:800}}>
+                    {u.username} {u.is_admin ? <span className="muted" style={{fontSize:12}}> ({t('admin')})</span> : null}
+                  </div>
+                  <div className="muted" style={{fontSize:13}}>
+                    id: {u.id} • $ {Number(u.usd_balance).toFixed(2)} • {t('banned')}: {u.is_banned ? t('yes') : t('no')}
+                  </div>
                 </div>
                 <div style={{display:'flex', gap:8}}>
-                  <button className="btn" onClick={()=>toggleBan(u)}>{u.is_banned ? 'Unban' : 'Ban'}</button>
-                  <button className="btn ghost" onClick={()=>deleteUser(u)}>Delete</button>
+                  <button className="btn" onClick={()=>toggleBan(u)}>{u.is_banned ? t('unban') : t('ban')}</button>
+                  <button className="btn ghost" onClick={()=>deleteUser(u)}>{t('delete')}</button>
                 </div>
               </div>
             ))}
@@ -160,17 +167,17 @@ export default function AdminPanel() {
 
       {tab === 'coins' && (
         <div className="card">
-          <h3>Coins ({coins.length})</h3>
+          <h3>{t('coins')} ({coins.length})</h3>
           <div style={{display:'flex', flexDirection:'column', gap:8}}>
             {coins.map(c => (
               <div key={c.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.02)'}}>
                 <div>
                   <div style={{fontWeight:800}}>{c.symbol} • {c.name}</div>
-                  <div className="muted" style={{fontSize:13}}>id: {c.id} • price: {c.pool_token ? (c.pool_base / c.pool_token).toFixed(8) : '—'}</div>
+                  <div className="muted" style={{fontSize:13}}>id: {c.id} • {t('price')}: {c.pool_token ? (c.pool_base / c.pool_token).toFixed(8) : '—'}</div>
                 </div>
                 <div style={{display:'flex', gap:8}}>
-                  <button className="btn" onClick={()=>editCoin(c)}>Edit</button>
-                  <button className="btn ghost" onClick={()=>deleteCoin(c)}>Delete</button>
+                  <button className="btn" onClick={()=>editCoin(c)}>{t('edit')}</button>
+                  <button className="btn ghost" onClick={()=>deleteCoin(c)}>{t('delete')}</button>
                 </div>
               </div>
             ))}
@@ -180,12 +187,12 @@ export default function AdminPanel() {
 
       {tab === 'db' && (
         <div className="card">
-          <h3>DB Editor</h3>
-          <p className="muted">Editing raw DB. Backup will be created automatically when you Save. Use with caution.</p>
+          <h3>{t('dbEditor')}</h3>
+          <p className="muted">{t('editingRawDBWarning')}</p>
           <textarea value={dbText} onChange={e=>setDbText(e.target.value)} style={{width:'100%', height:360, fontFamily:'monospace', fontSize:13, marginTop:8}} />
           <div style={{display:'flex', gap:8, marginTop:8}}>
-            <button className="btn" onClick={saveDb} disabled={loading}>Save DB (backup)</button>
-            <button className="btn ghost" onClick={loadDB} disabled={loading}>Reload</button>
+            <button className="btn" onClick={saveDb} disabled={loading}>{t('saveDB')}</button>
+            <button className="btn ghost" onClick={loadDB} disabled={loading}>{t('reload')}</button>
           </div>
         </div>
       )}
