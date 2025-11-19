@@ -3,7 +3,7 @@ import * as api from '../api';
 import { useTranslation } from 'react-i18next';
 
 export default function Settings() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [user, setUser] = useState(null);
   const [theme, setTheme] = useState('dark');
   const [loading, setLoading] = useState(true);
