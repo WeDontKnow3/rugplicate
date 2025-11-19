@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import * as api from '../api';
+import { useTranslation } from 'react-i18next';
 
 export default function Settings() {
+  const { i18n } = useTranslation();
   const [user, setUser] = useState(null);
   const [theme, setTheme] = useState('dark');
   const [loading, setLoading] = useState(true);
@@ -13,31 +15,22 @@ export default function Settings() {
     accountAge: 0
   });
 
-  // theme save
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     setTheme(savedTheme);
     applyTheme(savedTheme);
     loadUserData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadUserData() {
     setLoading(true);
     try {
-      const [userRes, txRes] = await Promise.all([
-        api.getMe(),
-        api.getTransactions()
-      ]);
-
+      const [userRes, txRes] = await Promise.all([api.getMe(), api.getTransactions()]);
       if (userRes && userRes.user) {
         setUser(userRes.user);
-
         const txs = (txRes && txRes.transactions) ? txRes.transactions : [];
         const tradeTxs = txs.filter(t => t.type === 'buy' || t.type === 'sell');
-
         const totalVolume = tradeTxs.reduce((sum, t) => sum + Number(t.usd_amount || 0), 0);
-
         const buyTxs = tradeTxs.filter(t => t.type === 'buy');
         const sellTxs = tradeTxs.filter(t => t.type === 'sell');
         let wins = 0;
@@ -50,10 +43,7 @@ export default function Settings() {
           if (sell) wins++;
         });
         const winRate = buyTxs.length > 0 ? (wins / buyTxs.length) * 100 : 0;
-
-        // account age random rn, should fix soon
         const accountAge = userRes.user.created_at ? Math.max(0, Math.floor((Date.now() - new Date(userRes.user.created_at).getTime()) / (1000 * 60 * 60 * 24))) : Math.floor(Math.random() * 90) + 1;
-
         setStats({
           totalTrades: tradeTxs.length,
           totalVolume: totalVolume,
@@ -70,15 +60,14 @@ export default function Settings() {
   }
 
   function applyTheme(themeName) {
-  if (themeName === 'light') {
-    document.documentElement.setAttribute('data-theme', 'light');
-    document.documentElement.classList.remove('dark');
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-    document.documentElement.classList.add('dark');
+    if (themeName === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+      document.documentElement.classList.add('dark');
+    }
   }
-}
-
 
   function handleThemeChange(newTheme) {
     setTheme(newTheme);
@@ -86,6 +75,10 @@ export default function Settings() {
     applyTheme(newTheme);
     setMsg(`Theme changed to ${newTheme}`);
     setTimeout(() => setMsg(''), 3000);
+  }
+
+  function changeLanguage(l) {
+    i18n.changeLanguage(l);
   }
 
   if (loading) {
@@ -99,19 +92,23 @@ export default function Settings() {
     );
   }
 
+  const langShort = (i18n.language || 'en').startsWith('pt') ? 'pt' : 'en';
+
   return (
     <div className="settings-page">
-      {/* Header */}
-      <div className="settings-header">
+      <div className="settings-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ margin: 0, marginBottom: 4 }}>Settings</h2>
           <p className="muted" style={{ margin: 0 }}>Customize your CoinSim experience</p>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 13, color: '#bfc7d6' }}>Language</div>
+          <button className={`btn ${langShort === 'en' ? 'active' : ''}`} onClick={() => changeLanguage('en')}>EN</button>
+          <button className={`btn ghost ${langShort === 'pt' ? 'active' : ''}`} onClick={() => changeLanguage('pt')}>PT</button>
+        </div>
       </div>
 
-      {msg && (
-        <div className="success-msg">✓ {msg}</div>
-      )}
+      {msg && <div className="success-msg">✓ {msg}</div>}
 
       <div className="card">
         <h3 style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -151,7 +148,6 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Trading Stats Card */}
       <div className="card">
         <h3 style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span>📊</span> Trading Statistics
@@ -192,7 +188,6 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Theme Settings Card */}
       <div className="card">
         <h3 style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span>🎨</span> Appearance
