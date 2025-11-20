@@ -33,14 +33,41 @@ export default function Gambling({ onBack, onActionComplete }) {
   const [flipping, setFlipping] = useState(false);
   const [landSide, setLandSide] = useState(null);
   const [slotReels, setSlotReels] = useState([SLOT_SYMBOLS[0], SLOT_SYMBOLS[0], SLOT_SYMBOLS[0]]);
+  const [displayReels, setDisplayReels] = useState([SLOT_SYMBOLS[0], SLOT_SYMBOLS[0], SLOT_SYMBOLS[0]]);
   const [spinning, setSpinning] = useState(false);
   const animTimerRef = useRef(null);
+  const reelIntervalRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (animTimerRef.current) clearTimeout(animTimerRef.current);
+      if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (spinning) {
+      reelIntervalRef.current = setInterval(() => {
+        setDisplayReels([
+          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
+          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
+          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]
+        ]);
+      }, 70);
+    } else {
+      if (reelIntervalRef.current) {
+        clearInterval(reelIntervalRef.current);
+        reelIntervalRef.current = null;
+      }
+      setDisplayReels(slotReels);
+    }
+    return () => {
+      if (reelIntervalRef.current) {
+        clearInterval(reelIntervalRef.current);
+        reelIntervalRef.current = null;
+      }
+    };
+  }, [spinning, slotReels]);
 
   const currentMinBet = gameMode === 'coinflip' ? COIN_MIN_BET : SLOTS_MIN_BET;
   const currentMaxBet = gameMode === 'coinflip' ? COIN_MAX_BET : SLOTS_MAX_BET;
@@ -281,9 +308,11 @@ export default function Gambling({ onBack, onActionComplete }) {
         .coin.spinToHead + .coin-shadow,.coin.spinToTail + .coin-shadow{transform:scale(0.7);opacity:0.5}
         .slots-display{display:flex;flex-direction:column;align-items:center;margin:40px 0}
         .slots-machine{display:flex;gap:16px;margin-bottom:32px;perspective:1000px}
-        .slot-reel{width:120px;height:140px;background:linear-gradient(135deg,var(--glass) 0%,var(--card) 100%);border:3px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:72px;box-shadow:inset 0 4px 12px rgba(0,0,0,0.1),0 8px 24px rgba(0,0,0,0.15);position:relative;overflow:hidden}
+        .slot-reel{width:120px;height:140px;background:linear-gradient(135deg,var(--glass) 0%,var(--card) 100%);border:3px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:72px;box-shadow:inset 0 4px 12px rgba(0,0,0,0.1),0 8px 24px rgba(0,0,0,0.15);position:relative;overflow:hidden;transition:transform 160ms ease}
         .slot-reel.spinning{animation:slotSpin ${SLOT_SPIN_DURATION}ms cubic-bezier(0.25,0.46,0.45,0.94)}
         .slot-reel.spinning::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 0%,rgba(255,255,255,0.1) 50%,transparent 100%);animation:slotBlur ${SLOT_SPIN_DURATION}ms linear infinite}
+        .slot-reel .symbol{display:block;will-change:transform;transition:transform 120ms ease}
+        .slot-reel.spinning .symbol{transform:translateY(-6px) scale(1.02)}
         @keyframes slotSpin{
           0%,100%{transform:translateY(0) rotateX(0deg)}
           25%{transform:translateY(-10px) rotateX(-5deg)}
@@ -443,9 +472,9 @@ export default function Gambling({ onBack, onActionComplete }) {
         ) : (
           <div className="slots-display">
             <div className="slots-machine">
-              {slotReels.map((symbol, idx) => (
+              {displayReels.map((symbol, idx) => (
                 <div key={idx} className={`slot-reel ${spinning ? 'spinning' : ''}`}>
-                  {spinning ? SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)] : symbol}
+                  <span className="symbol">{symbol}</span>
                 </div>
               ))}
             </div>
