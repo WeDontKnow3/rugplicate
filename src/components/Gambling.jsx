@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import * as api from '../api';
 
 const COIN_MIN_BET = 1;
 const COIN_MAX_BET = 1000000;
@@ -26,29 +27,6 @@ const SLOT_PAYOUTS = {
 };
 const TWO_MATCH_MULT = 2;
 
-const api = {
-  coinFlip: async (bet, side) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const win = Math.random() < 0.5;
-        resolve({ ok: true, net: win ? bet : -bet });
-      }, 500);
-    });
-  },
-  playSlots: async (bet) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const reels = [
-          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
-          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
-          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]
-        ];
-        resolve({ ok: true, reels });
-      }, 500);
-    });
-  }
-};
-
 export default function Gambling({ onBack, onActionComplete }) {
   const [gameMode, setGameMode] = useState('coinflip');
   const [bet, setBet] = useState('');
@@ -62,6 +40,7 @@ export default function Gambling({ onBack, onActionComplete }) {
   const [slotReels, setSlotReels] = useState([SLOT_SYMBOLS[0], SLOT_SYMBOLS[0], SLOT_SYMBOLS[0]]);
   const [displayReels, setDisplayReels] = useState([SLOT_SYMBOLS[0], SLOT_SYMBOLS[0], SLOT_SYMBOLS[0]]);
   const [spinning, setSpinning] = useState(false);
+  const [balance, setBalance] = useState(null);
   const animTimerRef = useRef(null);
   const reelIntervalRef = useRef(null);
   const spinAudioRef = useRef(null);
@@ -69,6 +48,11 @@ export default function Gambling({ onBack, onActionComplete }) {
   const loseAudioRef = useRef(null);
 
   useEffect(() => {
+    async function fetchBalance() {
+      const me = await api.getMe();
+      if (me && typeof me.balance !== 'undefined') setBalance(Number(me.balance));
+    }
+    fetchBalance();
     return () => {
       if (animTimerRef.current) clearTimeout(animTimerRef.current);
       if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
@@ -127,6 +111,39 @@ export default function Gambling({ onBack, onActionComplete }) {
     }
   }
 
+  function normalizeReels(reels) {
+    if (Array.isArray(reels)) return reels;
+    if (typeof reels === 'string') return [...reels];
+    return [];
+  }
+
+  function computeNetFromReels(nBet, reels) {
+    const arr = normalizeReels(reels);
+    if (arr.length !== 3) return -nBet;
+    const counts = {};
+    for (const s of arr) {
+      counts[s] = (counts[s] || 0) + 1;
+    }
+    for (const sym in counts) {
+      if (counts[sym] === 3) {
+        const combo = `${sym}${sym}${sym}`;
+        const mult = SLOT_PAYOUTS[combo] || 0;
+        return nBet * mult;
+      }
+    }
+    for (const sym in counts) {
+      if (counts[sym] === 2) {
+        return nBet * TWO_MATCH_MULT;
+      }
+    }
+    return -nBet;
+  }
+
+  async function refreshBalance() {
+    const me = await api.getMe();
+    if (me && typeof me.balance !== 'undefined') setBalance(Number(me.balance));
+  }
+
   async function handleFlip() {
     setMessage(null);
     setResult(null);
@@ -155,7 +172,7 @@ export default function Gambling({ onBack, onActionComplete }) {
       const finalSide = win ? side : (side === 'heads' ? 'tails' : 'heads');
       const animToUse = finalSide === 'heads' ? 'spinToHead' : 'spinToTail';
       setAnimName(animToUse);
-      animTimerRef.current = setTimeout(() => {
+      animTimerRef.current = setTimeout(async () => {
         setFlipping(false);
         setLandSide(finalSide);
         setAnimName('');
@@ -164,6 +181,7 @@ export default function Gambling({ onBack, onActionComplete }) {
         if (onActionComplete && typeof onActionComplete === 'function') {
           onActionComplete({ animate: { amount: Math.abs(net), type: win ? 'up' : 'down' }, keepView: true });
         }
+        await refreshBalance();
         setProcessing(false);
       }, ANIM_DURATION + 60);
     } catch (err) {
@@ -172,7 +190,7 @@ export default function Gambling({ onBack, onActionComplete }) {
       const finalSide = localWin ? side : (side === 'heads' ? 'tails' : 'heads');
       const animToUse = finalSide === 'heads' ? 'spinToHead' : 'spinToTail';
       setAnimName(animToUse);
-      animTimerRef.current = setTimeout(() => {
+      animTimerRef.current = setTimeout(async () => {
         setFlipping(false);
         setLandSide(finalSide);
         setAnimName('');
@@ -181,41 +199,10 @@ export default function Gambling({ onBack, onActionComplete }) {
         if (onActionComplete && typeof onActionComplete === 'function') {
           onActionComplete({ animate: { amount: Math.abs(net), type: net > 0 ? 'up' : 'down' }, keepView: true });
         }
+        await refreshBalance();
         setProcessing(false);
       }, ANIM_DURATION + 60);
     }
-  }
-
-  function normalizeReels(reels) {
-    if (Array.isArray(reels)) return reels;
-    if (typeof reels === 'string') return [...reels];
-    return [];
-  }
-
-  function computeNetFromReels(nBet, reels) {
-    const arr = normalizeReels(reels);
-    if (arr.length !== 3) return -nBet;
-    
-    const counts = {};
-    for (const s of arr) {
-      counts[s] = (counts[s] || 0) + 1;
-    }
-    
-    for (const sym in counts) {
-      if (counts[sym] === 3) {
-        const combo = `${sym}${sym}${sym}`;
-        const mult = SLOT_PAYOUTS[combo] || 0;
-        return nBet * mult;
-      }
-    }
-    
-    for (const sym in counts) {
-      if (counts[sym] === 2) {
-        return nBet * TWO_MATCH_MULT;
-      }
-    }
-    
-    return -nBet;
   }
 
   async function handleSlotSpin() {
@@ -283,7 +270,7 @@ export default function Gambling({ onBack, onActionComplete }) {
           win = net > 0;
         }
       }
-      animTimerRef.current = setTimeout(() => {
+      animTimerRef.current = setTimeout(async () => {
         if (spinAudioRef.current) try { spinAudioRef.current.pause(); spinAudioRef.current.currentTime = 0; } catch(e) {}
         if (win) {
           try {
@@ -311,6 +298,7 @@ export default function Gambling({ onBack, onActionComplete }) {
         if (onActionComplete && typeof onActionComplete === 'function') {
           onActionComplete({ animate: { amount: Math.abs(net), type: win ? 'up' : 'down' }, keepView: true });
         }
+        await refreshBalance();
         setProcessing(false);
       }, SLOT_SPIN_DURATION);
     } catch (err) {
@@ -334,7 +322,7 @@ export default function Gambling({ onBack, onActionComplete }) {
         net = computeNetFromReels(nBet, finalReels);
         win = net > 0;
       }
-      animTimerRef.current = setTimeout(() => {
+      animTimerRef.current = setTimeout(async () => {
         if (spinAudioRef.current) try { spinAudioRef.current.pause(); spinAudioRef.current.currentTime = 0; } catch(e) {}
         if (win) {
           try {
@@ -362,6 +350,7 @@ export default function Gambling({ onBack, onActionComplete }) {
         if (onActionComplete && typeof onActionComplete === 'function') {
           onActionComplete({ animate: { amount: Math.abs(net), type: net > 0 ? 'up' : 'down' }, keepView: true });
         }
+        await refreshBalance();
         setProcessing(false);
       }, SLOT_SPIN_DURATION);
     }
@@ -451,7 +440,7 @@ export default function Gambling({ onBack, onActionComplete }) {
         .result-value{font-size:36px;font-weight:900;color:var(--text-primary);min-height:45px;display:flex;align-items:center;justify-content:center}
         .result-value.win{color:var(--success)}
         .result-value.loss{color:var(--danger)}
-        .message-box{padding:16px 20px;border-radius:10px;text-align:center;font-weight:600;font-size:15px;margin-top:24px;border:1px solid transparent}
+        .message-box{padding:16px 20px;border-radius:10px;text-align:center;font-weight:600;font-size:15px;margin-top:24px;border:1px solid.transparent}
         .message-box.success{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:var(--success)}
         .message-box.error{background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2);color:var(--danger)}
         .result-footer{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:var(--glass);border-radius:10px;margin-top:16px;border:1px solid var(--border)}
@@ -502,7 +491,11 @@ export default function Gambling({ onBack, onActionComplete }) {
             →
           </button>
         </div>
-        <button className="btn ghost" onClick={onBack}>Back</button>
+        <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
+          <div style={{fontWeight:800}}>Balance</div>
+          <div style={{minWidth:120, textAlign:'right', fontWeight:800}}>${balance !== null ? balance.toFixed(2) : '—'}</div>
+          <button className="btn ghost" onClick={onBack}>Back</button>
+        </div>
       </div>
 
       <div className="gambling-card">
