@@ -5,7 +5,9 @@ import { useTranslation } from 'react-i18next';
 export default function AdminPanel() {
   const { t } = useTranslation();
   const [me, setMe] = useState(null);
-  const [tab, setTab] = useState('users'); 
+  const [tab, setTab] = useState('users');
+  const [promoForm, setPromoForm] = useState({ code: '', amount: '', maxUses: 0, perUserLimit: 1, expiresAt: '' });
+  const [adminPromos, setAdminPromos] = useState([]);
   const [users, setUsers] = useState([]);
   const [coins, setCoins] = useState([]);
   const [dbText, setDbText] = useState('');
