@@ -25,6 +25,7 @@ const SLOT_PAYOUTS = {
   '7️⃣7️⃣7️⃣': 50,
   '⭐⭐⭐': 100
 };
+const TWO_MATCH_MULT = 2;
 
 export default function Gambling({ onBack, onActionComplete }) {
   const [gameMode, setGameMode] = useState('coinflip');
@@ -168,16 +169,26 @@ export default function Gambling({ onBack, onActionComplete }) {
     }
   }
 
+  function normalizeReels(reels) {
+    if (Array.isArray(reels)) return reels;
+    if (typeof reels === 'string') return [...reels];
+    return [];
+  }
+
   function computeNetFromReels(nBet, reels) {
-    if (!Array.isArray(reels) || reels.length !== 3) return -nBet;
-    const [a, b, c] = reels;
-    if (a === b && b === c) {
-      const combo = `${a}${b}${c}`;
-      const mult = SLOT_PAYOUTS[combo] || 0;
-      return nBet * mult;
-    }
-    if (a === b || a === c || b === c) {
-      return nBet * 2;
+    const arr = normalizeReels(reels);
+    if (arr.length !== 3) return -nBet;
+    const counts = {};
+    for (const s of arr) counts[s] = (counts[s] || 0) + 1;
+    for (const sym in counts) {
+      if (counts[sym] === 3) {
+        const combo = `${sym}${sym}${sym}`;
+        const mult = SLOT_PAYOUTS[combo] || 0;
+        return nBet * mult;
+      }
+      if (counts[sym] === 2) {
+        return nBet * TWO_MATCH_MULT;
+      }
     }
     return -nBet;
   }
@@ -218,6 +229,8 @@ export default function Gambling({ onBack, onActionComplete }) {
         serverOk = true;
         if (Array.isArray(data.reels) && data.reels.length === 3) {
           finalReels = data.reels;
+        } else if (typeof data.reels === 'string' && data.reels.length > 0) {
+          finalReels = normalizeReels(data.reels);
         } else {
           finalReels = [
             SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
@@ -581,7 +594,7 @@ export default function Gambling({ onBack, onActionComplete }) {
                 ))}
                 <div className="paytable-item">
                   <span className="paytable-symbols">Any two same</span>
-                  <span className="paytable-multiplier">2x</span>
+                  <span className="paytable-multiplier">{TWO_MATCH_MULT}x</span>
                 </div>
               </div>
             </div>
