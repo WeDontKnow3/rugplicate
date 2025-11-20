@@ -332,3 +332,16 @@ export async function coinFlip(bet, side = 'heads'){
     return { error: e.message || "network_error" };
   }
 }
+
+export async function playSlots(bet){
+  try{
+    const res = await fetch(`${API_BASE}/api/gambling/slots`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ bet: Number(bet) })
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
