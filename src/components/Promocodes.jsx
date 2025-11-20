@@ -111,7 +111,7 @@ export default function Promocodes({ onActionComplete }) {
 
         {promos.length === 0 && !loading && (
           <div className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
-            No active promocodes available at the moment
+            No public promocodes available. Enter a code above to redeem.
           </div>
         )}
       </div>
