@@ -203,6 +203,19 @@ export async function createPromoCode(payload){
   }
 }
 
+export async function adminUpdatePromoCode(id, payload){
+  try{
+    const res = await fetch(`${API_BASE}/api/admin/promocodes/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(payload)
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
 export async function adminListPromoCodes(){
   try{
     const res = await fetch(`${API_BASE}/api/admin/promocodes`, { headers: { ...authHeaders() } });
