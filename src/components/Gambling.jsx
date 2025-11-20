@@ -113,7 +113,24 @@ export default function Gambling({ onBack, onActionComplete }) {
 
   function normalizeReels(reels) {
     if (Array.isArray(reels)) return reels;
-    if (typeof reels === 'string') return [...reels];
+    if (typeof reels === 'string') {
+      if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+        try {
+          const seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+          return Array.from(seg.segment(reels), s => s.segment);
+        } catch (e) {}
+      }
+      try {
+        const emojiRegex = /(\p{Extended_Pictographic}(?:\uFE0F|[\u200D\p{Emoji_Modifier}\p{Extend}]*)?)/gu;
+        const matches = [];
+        let m;
+        while ((m = emojiRegex.exec(reels)) !== null) {
+          if (m[1]) matches.push(m[1]);
+        }
+        if (matches.length) return matches;
+      } catch (e) {}
+      return Array.from(reels);
+    }
     return [];
   }
 
