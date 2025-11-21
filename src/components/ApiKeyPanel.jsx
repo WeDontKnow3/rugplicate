@@ -128,20 +128,18 @@ export default function ApiKeyPanel() {
     }
 
     const maxLatency = Math.max(...latencyData.map(d => d.latency));
-    const chartHeight = 180;
-    const chartWidth = 100;
-    const padding = { top: 10, bottom: 30, left: 40, right: 10 };
-    const innerHeight = chartHeight - padding.top - padding.bottom;
-    const innerWidth = chartWidth - padding.left - padding.right;
+    const minLatency = Math.min(...latencyData.map(d => d.latency));
+    const range = maxLatency - minLatency;
+    const chartPadding = range * 0.1;
+    const chartMax = maxLatency + chartPadding;
+    const chartMin = Math.max(0, minLatency - chartPadding);
 
     return (
-      <div style={{ position: 'relative', height: chartHeight, width: '100%' }}>
+      <div style={{ position: 'relative', width: '100%', height: 200 }}>
         <svg 
           width="100%" 
-          height={chartHeight} 
+          height="200" 
           style={{ overflow: 'visible' }}
-          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          preserveAspectRatio="none"
         >
           <defs>
             <linearGradient id="latencyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -151,80 +149,105 @@ export default function ApiKeyPanel() {
           </defs>
 
           {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
-            const y = padding.top + innerHeight * ratio;
+            const value = chartMin + (chartMax - chartMin) * (1 - ratio);
+            const y = 20 + 140 * ratio;
             return (
               <g key={i}>
                 <line
-                  x1={padding.left}
+                  x1="50"
                   y1={y}
-                  x2={chartWidth - padding.right}
+                  x2="95%"
                   y2={y}
                   stroke="rgba(255,255,255,0.05)"
-                  strokeWidth="0.5"
+                  strokeWidth="1"
                 />
                 <text
-                  x={padding.left - 5}
-                  y={y}
+                  x="45"
+                  y={y + 4}
                   fill="#94a3b8"
-                  fontSize="3"
+                  fontSize="11"
                   textAnchor="end"
-                  dominantBaseline="middle"
                 >
-                  {Math.round(maxLatency * (1 - ratio))}ms
+                  {Math.round(value)}ms
                 </text>
               </g>
             );
           })}
 
-          <polyline
-            fill="url(#latencyGradient)"
-            stroke="none"
-            points={
-              latencyData.map((d, i) => {
-                const x = padding.left + (i / (latencyData.length - 1)) * innerWidth;
-                const y = padding.top + innerHeight * (1 - d.latency / maxLatency);
-                return `${x},${y}`;
-              }).join(' ') + 
-              ` ${chartWidth - padding.right},${chartHeight - padding.bottom} ${padding.left},${chartHeight - padding.bottom}`
-            }
-          />
+          <defs>
+            <clipPath id="chartClip">
+              <rect x="50" y="20" width="calc(100% - 60)" height="140" />
+            </clipPath>
+          </defs>
 
-          <polyline
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth="0.8"
-            points={
-              latencyData.map((d, i) => {
-                const x = padding.left + (i / (latencyData.length - 1)) * innerWidth;
-                const y = padding.top + innerHeight * (1 - d.latency / maxLatency);
-                return `${x},${y}`;
-              }).join(' ')
-            }
-          />
+          <g clipPath="url(#chartClip)">
+            <path
+              d={(() => {
+                const width = typeof window !== 'undefined' ? (window.innerWidth > 768 ? 600 : 300) : 600;
+                const chartWidth = width - 60;
+                
+                let path = latencyData.map((d, i) => {
+                  const x = 50 + (i / (latencyData.length - 1)) * chartWidth;
+                  const y = 20 + 140 * (1 - (d.latency - chartMin) / (chartMax - chartMin));
+                  return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+                }).join(' ');
+                
+                const lastX = 50 + chartWidth;
+                path += ` L ${lastX},160 L 50,160 Z`;
+                return path;
+              })()}
+              fill="url(#latencyGradient)"
+              stroke="none"
+            />
 
-          {latencyData.map((d, i) => {
-            const x = padding.left + (i / (latencyData.length - 1)) * innerWidth;
-            const y = padding.top + innerHeight * (1 - d.latency / maxLatency);
-            return (
-              <circle
-                key={i}
-                cx={x}
-                cy={y}
-                r="0.8"
-                fill="#3b82f6"
-              />
-            );
-          })}
+            <path
+              d={(() => {
+                const width = typeof window !== 'undefined' ? (window.innerWidth > 768 ? 600 : 300) : 600;
+                const chartWidth = width - 60;
+                
+                return latencyData.map((d, i) => {
+                  const x = 50 + (i / (latencyData.length - 1)) * chartWidth;
+                  const y = 20 + 140 * (1 - (d.latency - chartMin) / (chartMax - chartMin));
+                  return `${i === 0 ? 'M' : 'L'} ${x},${y}`;
+                }).join(' ');
+              })()}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+
+            {latencyData.map((d, i) => {
+              const width = typeof window !== 'undefined' ? (window.innerWidth > 768 ? 600 : 300) : 600;
+              const chartWidth = width - 60;
+              const x = 50 + (i / (latencyData.length - 1)) * chartWidth;
+              const y = 20 + 140 * (1 - (d.latency - chartMin) / (chartMax - chartMin));
+              return (
+                <circle
+                  key={i}
+                  cx={x}
+                  cy={y}
+                  r="3"
+                  fill="#3b82f6"
+                  stroke="#fff"
+                  strokeWidth="1.5"
+                />
+              );
+            })}
+          </g>
 
           {[0, 6, 12, 18, 24].map((hour, i) => {
-            const x = padding.left + (hour / 24) * innerWidth;
+            const width = typeof window !== 'undefined' ? (window.innerWidth > 768 ? 600 : 300) : 600;
+            const chartWidth = width - 60;
+            const x = 50 + (hour / 24) * chartWidth;
             return (
               <text
                 key={i}
                 x={x}
-                y={chartHeight - padding.bottom + 8}
+                y="180"
                 fill="#94a3b8"
-                fontSize="3"
+                fontSize="11"
                 textAnchor="middle"
               >
                 {hour}h
