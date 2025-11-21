@@ -451,3 +451,70 @@ export async function transferAssets(payload){
     return { error: e.message || "network_error" };
   }
 }
+
+export async function getNotifications(){
+  try{
+    const res = await fetch(`${API_BASE}/api/notifications`, { headers: { ...authHeaders() } });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function getUnreadNotificationCount(){
+  try{
+    const res = await fetch(`${API_BASE}/api/notifications/unread-count`, { headers: { ...authHeaders() } });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function markNotificationRead(id){
+  try{
+    const res = await fetch(`${API_BASE}/api/notifications/${id}/read`, {
+      method: "POST",
+      headers: { ...authHeaders() }
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function markAllNotificationsRead(){
+  try{
+    const res = await fetch(`${API_BASE}/api/notifications/read-all`, {
+      method: "POST",
+      headers: { ...authHeaders() }
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function deleteNotification(id){
+  try{
+    const res = await fetch(`${API_BASE}/api/notifications/${id}`, {
+      method: "DELETE",
+      headers: { ...authHeaders() }
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function adminSendGlobalNotification(payload){
+  try{
+    const res = await fetch(`${API_BASE}/api/admin/notifications/global`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(payload)
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
