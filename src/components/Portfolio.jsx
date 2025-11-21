@@ -10,6 +10,12 @@ export default function Portfolio({ onActionComplete }) {
   const [sellAmounts, setSellAmounts] = useState({});
   const [msg, setMsg] = useState('');
   const [loadingSell, setLoadingSell] = useState(null);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferType, setTransferType] = useState('usd');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferRecipient, setTransferRecipient] = useState('');
+  const [transferSymbol, setTransferSymbol] = useState('');
+  const [loadingTransfer, setLoadingTransfer] = useState(false);
 
   async function load() {
     setMsg('');
@@ -72,6 +78,62 @@ export default function Portfolio({ onActionComplete }) {
     }
   }
 
+  async function handleTransfer() {
+    setMsg('');
+    
+    const amount = Number(transferAmount);
+    if (!amount || amount < 10) {
+      setMsg('Minimum transfer amount is $10');
+      return;
+    }
+    
+    if (!transferRecipient.trim()) {
+      setMsg('Enter recipient username');
+      return;
+    }
+    
+    if (transferType === 'token' && !transferSymbol) {
+      setMsg('Select a token to transfer');
+      return;
+    }
+
+    setLoadingTransfer(true);
+
+    try {
+      const res = await api.transferAssets({
+        type: transferType,
+        amount: amount,
+        recipient: transferRecipient.trim(),
+        symbol: transferType === 'token' ? transferSymbol : undefined
+      });
+
+      if (res.ok) {
+        setMsg(`Successfully transferred ${transferType === 'usd' ? '$' + amount.toFixed(2) : amount + ' ' + transferSymbol} to ${transferRecipient}`);
+        setShowTransferModal(false);
+        setTransferAmount('');
+        setTransferRecipient('');
+        setTransferSymbol('');
+        await load();
+
+        if (onActionComplete) {
+          onActionComplete({
+            keepView: true,
+            animate: {
+              amount: transferType === 'usd' ? amount : 0,
+              type: 'down'
+            }
+          });
+        }
+      } else {
+        setMsg(res.error || 'Transfer failed');
+      }
+    } catch (err) {
+      setMsg('Transfer failed');
+    } finally {
+      setLoadingTransfer(false);
+    }
+  }
+
   return (
     <div>
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
@@ -97,7 +159,133 @@ export default function Portfolio({ onActionComplete }) {
             </div>
           </div>
         </div>
+        
+        <button 
+          className="btn" 
+          style={{marginTop:12, width:'100%'}}
+          onClick={() => setShowTransferModal(true)}
+        >
+          Transfer Assets
+        </button>
       </div>
+
+      {showTransferModal && (
+        <div style={{
+          position:'fixed', 
+          top:0, 
+          left:0, 
+          right:0, 
+          bottom:0, 
+          background:'rgba(0,0,0,0.7)', 
+          display:'flex', 
+          alignItems:'center', 
+          justifyContent:'center',
+          zIndex:1000
+        }}>
+          <div className="card" style={{maxWidth:400, width:'90%'}}>
+            <h3 style={{marginTop:0}}>Transfer Assets</h3>
+            
+            <div style={{marginBottom:12}}>
+              <label className="small muted" style={{display:'block', marginBottom:4}}>Type</label>
+              <select 
+                value={transferType} 
+                onChange={e => {
+                  setTransferType(e.target.value);
+                  setTransferSymbol('');
+                }}
+                style={{
+                  width:'100%',
+                  padding:8,
+                  background:'#1a1d29',
+                  border:'1px solid #2d3348',
+                  borderRadius:6,
+                  color:'#fff'
+                }}
+              >
+                <option value="usd">USD Balance</option>
+                <option value="token">Token</option>
+              </select>
+            </div>
+
+            {transferType === 'token' && (
+              <div style={{marginBottom:12}}>
+                <label className="small muted" style={{display:'block', marginBottom:4}}>Select Token</label>
+                <select 
+                  value={transferSymbol} 
+                  onChange={e => setTransferSymbol(e.target.value)}
+                  style={{
+                    width:'100%',
+                    padding:8,
+                    background:'#1a1d29',
+                    border:'1px solid #2d3348',
+                    borderRadius:6,
+                    color:'#fff'
+                  }}
+                >
+                  <option value="">Choose token...</option>
+                  {me && me.tokens.map(tk => (
+                    <option key={tk.symbol} value={tk.symbol}>
+                      {tk.symbol} ({Number(tk.amount).toLocaleString()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div style={{marginBottom:12}}>
+              <label className="small muted" style={{display:'block', marginBottom:4}}>
+                Amount (min: {transferType === 'usd' ? '$10' : '10 tokens'})
+              </label>
+              <input
+                type="number"
+                className="small-input"
+                placeholder="Amount"
+                value={transferAmount}
+                onChange={e => setTransferAmount(e.target.value)}
+                min="10"
+                step="0.01"
+                style={{width:'100%'}}
+              />
+            </div>
+
+            <div style={{marginBottom:16}}>
+              <label className="small muted" style={{display:'block', marginBottom:4}}>Recipient Username</label>
+              <input
+                type="text"
+                className="small-input"
+                placeholder="username"
+                value={transferRecipient}
+                onChange={e => setTransferRecipient(e.target.value)}
+                style={{width:'100%'}}
+              />
+            </div>
+
+            <div style={{display:'flex', gap:8}}>
+              <button 
+                className="btn" 
+                onClick={handleTransfer}
+                disabled={loadingTransfer}
+                style={{flex:1}}
+              >
+                {loadingTransfer ? 'Sending...' : 'Send'}
+              </button>
+              <button 
+                className="btn" 
+                onClick={() => {
+                  setShowTransferModal(false);
+                  setTransferAmount('');
+                  setTransferRecipient('');
+                  setTransferSymbol('');
+                }}
+                disabled={loadingTransfer}
+                style={{flex:1, background:'#2d3348'}}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{marginTop:8}}>
         <h3>{t('holdings')}</h3>
