@@ -307,7 +307,7 @@ export default function ApiKeyPanel() {
               fontSize: 13,
               fontFamily: 'monospace'
             }}>
-              https://your-api-domain.com
+              https://devsite-backend-production.up.railway.app
             </code>
           </div>
 
@@ -360,7 +360,7 @@ export default function ApiKeyPanel() {
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-all'
             }}>
-{`curl -X GET "https://your-api.com/api/v1/coin/BTC" \\
+{`curl -X GET "https://devsite-backend-production.up.railway.app/api/v1/coin/BTC" \\
   -H "X-API-Key: your_api_key_here"`}
             </code>
           </div>
