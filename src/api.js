@@ -404,3 +404,37 @@ export async function playSlots(bet){
     return { error: e.message || "network_error" };
   }
 }
+
+export async function getCoinComments(symbol){
+  try{
+    const res = await fetch(`${API_BASE}/api/coins/${encodeURIComponent(symbol)}/comments`, { headers: { ...authHeaders() } });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function postCoinComment(symbol, text){
+  try{
+    const res = await fetch(`${API_BASE}/api/coins/${encodeURIComponent(symbol)}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ text })
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function deleteCoinComment(commentId){
+  try{
+    const res = await fetch(`${API_BASE}/api/coins/comments/${commentId}`, {
+      method: "DELETE",
+      headers: { ...authHeaders() }
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
