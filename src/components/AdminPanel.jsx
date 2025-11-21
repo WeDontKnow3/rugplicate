@@ -13,6 +13,7 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(false);
   const [promoForm, setPromoForm] = useState({ code: '', amount: '', maxUses: 0, perUserLimit: 1, expiresAt: '', showPublic: true });
   const [adminPromos, setAdminPromos] = useState([]);
+  const [notifForm, setNotifForm] = useState({ title: '', message: '', type: 'admin' });
 
   async function loadMe() {
     const r = await api.getMe();
@@ -195,6 +196,24 @@ export default function AdminPanel() {
     setLoading(false);
   }
 
+  async function sendNotification(e) {
+    e.preventDefault();
+    if (!notifForm.title || !notifForm.message) {
+      setMsg('Title and message are required');
+      return;
+    }
+    setLoading(true);
+    setMsg('');
+    const r = await api.adminSendGlobalNotification(notifForm);
+    if (r && r.ok) {
+      setMsg(`Global notification sent to ${r.sent_count || 0} users`);
+      setNotifForm({ title: '', message: '', type: 'admin' });
+    } else {
+      setMsg(r && r.error ? r.error : 'Failed to send notification');
+    }
+    setLoading(false);
+  }
+
   return (
     <div className="page">
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
@@ -202,11 +221,12 @@ export default function AdminPanel() {
         <div style={{fontSize:13, color:'#bfc7d6'}}>{t('admin')}: {me.username}</div>
       </div>
 
-      <div style={{display:'flex', gap:8, marginBottom:10}}>
+      <div style={{display:'flex', gap:8, marginBottom:10, flexWrap:'wrap'}}>
         <button className={`nav-btn ${tab==='users'?'active':''}`} onClick={()=>setTab('users')}>{t('users')}</button>
         <button className={`nav-btn ${tab==='coins'?'active':''}`} onClick={()=>setTab('coins')}>{t('coins')}</button>
         <button className={`nav-btn ${tab==='db'?'active':''}`} onClick={()=>setTab('db')}>{t('dbEditor')}</button>
         <button className={`nav-btn ${tab==='promos'?'active':''}`} onClick={()=>setTab('promos')}>Promocodes</button>
+        <button className={`nav-btn ${tab==='notifications'?'active':''}`} onClick={()=>setTab('notifications')}>Notifications</button>
       </div>
 
       {msg && <div className="msg" style={{marginBottom:12}}>{msg}</div>}
@@ -360,6 +380,46 @@ export default function AdminPanel() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {tab === 'notifications' && (
+        <div className="card">
+          <h3>Send Global Notification</h3>
+          <p className="muted" style={{ marginBottom: 12 }}>
+            Send a notification to all users. This will appear in their notifications page.
+          </p>
+          <form onSubmit={sendNotification} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <input
+              type="text"
+              placeholder="Notification Title"
+              value={notifForm.title}
+              onChange={e => setNotifForm({ ...notifForm, title: e.target.value })}
+              style={{ padding: '10px 12px' }}
+              maxLength={100}
+              required
+            />
+            <textarea
+              placeholder="Notification Message"
+              value={notifForm.message}
+              onChange={e => setNotifForm({ ...notifForm, message: e.target.value })}
+              style={{ padding: '10px 12px', minHeight: 120, fontFamily: 'inherit', resize: 'vertical' }}
+              maxLength={500}
+              required
+            />
+            <select
+              value={notifForm.type}
+              onChange={e => setNotifForm({ ...notifForm, type: e.target.value })}
+              style={{ padding: '10px 12px' }}
+            >
+              <option value="admin">Admin Announcement 📢</option>
+              <option value="system">System Update ⚙️</option>
+              <option value="promo">Promotion 🎁</option>
+            </select>
+            <button type="submit" className="btn" disabled={loading}>
+              Send to All Users
+            </button>
+          </form>
         </div>
       )}
     </div>
