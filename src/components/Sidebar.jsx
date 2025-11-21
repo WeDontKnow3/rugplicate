@@ -8,6 +8,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
   const pollRef = useRef(null);
 
   const [trades, setTrades] = useState([]);
+  const [wsStatus, setWsStatus] = useState('disconnected');
   const wsRef = useRef(null);
   const reconnectRef = useRef({ attempts: 0, timeout: null });
 
@@ -67,8 +68,8 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
     };
   }, []);
 
-  const WS_URL = import.meta.env.VITE_WS_URL || "wss://devsite-backend-production.up.railway.app/ws";
-  const MAX_TRADES = 6;
+  const WS_URL = import.meta.env.VITE_WS_URL || "wss://devsite-backend-production.up.railway.app";
+  const MAX_TRADES = 15;
 
   function pushTrade(t) {
     setTrades(prev => {
@@ -83,32 +84,46 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
       stopWebsocket();
       const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
+      
       ws.addEventListener('open', () => {
+        setWsStatus('connected');
         reconnectRef.current.attempts = 0;
       });
+      
       ws.addEventListener('message', (ev) => {
         try {
-          const data = JSON.parse(ev.data)
+          const data = JSON.parse(ev.data);
           if (data && (data.type === 'trade' || data.event === 'trade')) {
-            const t = {
-              coin: data.coin || data.symbol || data.token || 'UNKNOWN',
-              side: (data.side === 'sell' || data.type === 'sell') ? 'sell' : 'buy',
-              tokenAmount: Number(data.tokenAmount || data.token_amount || data.amount || 0),
-              usdAmount: Number(data.usdAmount || data.usd_amount || data.usd || 0),
-              price: Number(data.price || 0),
-              created_at: data.created_at || data.ts || new Date().toISOString()
-            };
-            pushTrade(t);
+            const usdAmt = Number(data.usdAmount || data.usd_amount || data.usd || 0);
+            
+            if (usdAmt >= 1000) {
+              const t = {
+                coin: data.coin || data.symbol || data.token || 'UNKNOWN',
+                side: (data.side === 'sell' || data.type === 'sell') ? 'sell' : 'buy',
+                tokenAmount: Number(data.tokenAmount || data.token_amount || data.amount || 0),
+                usdAmount: usdAmt,
+                price: Number(data.price || 0),
+                created_at: data.created_at || data.ts || new Date().toISOString()
+              };
+              pushTrade(t);
+            }
           }
         } catch (e) {
           console.warn('ws parse error', e);
         }
       });
-      ws.addEventListener('close', () => scheduleReconnect());
+      
+      ws.addEventListener('close', () => {
+        setWsStatus('disconnected');
+        scheduleReconnect();
+      });
+      
       ws.addEventListener('error', () => {
+        setWsStatus('error');
         try { ws.close(); } catch(_){}
       });
     } catch (e) {
+      setWsStatus('error');
       scheduleReconnect();
     }
   }
@@ -116,19 +131,24 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
   function scheduleReconnect() {
     const r = reconnectRef.current;
     r.attempts = (r.attempts || 0) + 1;
-    const delay = Math.min(30000, 500 * Math.pow(2, Math.min(r.attempts, 6)) );
+    const delay = Math.min(30000, 500 * Math.pow(2, Math.min(r.attempts, 6)));
     if (r.timeout) clearTimeout(r.timeout);
     r.timeout = setTimeout(() => {
+      setWsStatus('connecting');
       startWebsocket();
     }, delay);
   }
 
   function stopWebsocket() {
-    if (reconnectRef.current.timeout) { clearTimeout(reconnectRef.current.timeout); reconnectRef.current.timeout = null; }
+    if (reconnectRef.current.timeout) { 
+      clearTimeout(reconnectRef.current.timeout); 
+      reconnectRef.current.timeout = null; 
+    }
     if (wsRef.current) {
       try { wsRef.current.close(); } catch (e) {}
       wsRef.current = null;
     }
+    setWsStatus('disconnected');
   }
 
   useEffect(() => {
@@ -146,6 +166,20 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
     if (onLogout && typeof onLogout === 'function') onLogout();
     else window.location.reload();
   }
+
+  const statusColors = {
+    connected: '#10b981',
+    connecting: '#f59e0b',
+    disconnected: '#ef4444',
+    error: '#ef4444'
+  };
+
+  const statusLabels = {
+    connected: 'Live',
+    connecting: 'Connecting',
+    disconnected: 'Offline',
+    error: 'Error'
+  };
 
   return (
     <>
@@ -180,27 +214,86 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
 
         <div className="live-trades-card" style={{ marginTop: 10, marginBottom: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <div style={{ fontWeight: 800 }}>Live Trades (offline)</div>
-            <div style={{ fontSize: 12, color: '#94a3b8' }}>{WS_URL ? 'disconnected' : 'no feed'}</div>
+            <div style={{ fontWeight: 800 }}>Live Trades ($1k+)</div>
+            <div style={{ 
+              fontSize: 11, 
+              color: statusColors[wsStatus],
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}>
+              <span style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                backgroundColor: statusColors[wsStatus],
+                display: 'inline-block',
+                animation: wsStatus === 'connected' ? 'pulse 2s infinite' : 'none'
+              }}></span>
+              {statusLabels[wsStatus]}
+            </div>
           </div>
 
-          {WS_URL ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {trades.length === 0 ? (
-                <div className="muted">websocket not working rn lol</div>
-              ) : (
-                trades.map((t, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ minWidth: 72, fontWeight: 700 }}>{t.coin}</div>
-                    <div style={{ flex: 1, fontSize: 13, color: '#94a3b8' }}>{t.side === 'sell' ? 'sell' : 'buy'} • {Number(t.tokenAmount).toLocaleString()}</div>
-                    <div style={{ minWidth: 70, textAlign: 'right', fontWeight: 700 }}>{t.price ? `$${Number(t.price).toFixed(6)}` : `$${Number(t.usdAmount || 0).toFixed(2)}`}</div>
+          <div style={{ 
+            maxHeight: 320, 
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 8,
+            paddingRight: 4
+          }}>
+            {trades.length === 0 ? (
+              <div className="muted" style={{ textAlign: 'center', padding: '20px 0', fontSize: 13 }}>
+                {wsStatus === 'connected' ? 'Waiting for trades...' : 'Connecting to live feed...'}
+              </div>
+            ) : (
+              trades.map((t, i) => (
+                <div 
+                  key={`${t.created_at}-${i}`} 
+                  style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    gap: 8,
+                    padding: '6px 8px',
+                    backgroundColor: t.side === 'buy' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                    borderRadius: 6,
+                    borderLeft: `3px solid ${t.side === 'buy' ? '#10b981' : '#ef4444'}`,
+                    animation: 'slideIn 0.3s ease-out'
+                  }}
+                >
+                  <div style={{ 
+                    minWidth: 60, 
+                    fontWeight: 700,
+                    fontSize: 13,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {t.coin}
                   </div>
-                ))
-              )}
-            </div>
-          ) : (
-            <div className="muted">No websocket configured. Set VITE_WS_URL to enable live trades.</div>
-          )}
+                  <div style={{ 
+                    flex: 1, 
+                    fontSize: 12, 
+                    color: '#94a3b8',
+                    textTransform: 'uppercase',
+                    fontWeight: 600
+                  }}>
+                    {t.side}
+                  </div>
+                  <div style={{ 
+                    minWidth: 70, 
+                    textAlign: 'right', 
+                    fontWeight: 700,
+                    fontSize: 13,
+                    color: t.side === 'buy' ? '#10b981' : '#ef4444'
+                  }}>
+                    ${Number(t.usdAmount).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
         <div className="sidebar-bottom">
@@ -227,6 +320,46 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
           )}
         </div>
       </aside>
+
+      <style>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+
+        .live-trades-card::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .live-trades-card::-webkit-scrollbar-track {
+          background: rgba(148, 163, 184, 0.1);
+          border-radius: 3px;
+        }
+
+        .live-trades-card::-webkit-scrollbar-thumb {
+          background: rgba(148, 163, 184, 0.3);
+          border-radius: 3px;
+        }
+
+        .live-trades-card::-webkit-scrollbar-thumb:hover {
+          background: rgba(148, 163, 184, 0.5);
+        }
+      `}</style>
     </>
   );
 }
