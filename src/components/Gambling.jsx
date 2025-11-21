@@ -90,11 +90,12 @@ export default function Gambling({ onBack, onActionComplete }) {
   const currentMaxBet = gameMode === 'coinflip' ? COIN_MAX_BET : SLOTS_MAX_BET;
 
   function clampBet(v) {
-    const n = Number(v || 0);
+    if (!v || v === '') return '';
+    const n = Number(v);
     if (!Number.isFinite(n)) return '';
     const minBet = gameMode === 'coinflip' ? COIN_MIN_BET : SLOTS_MIN_BET;
     const maxBet = gameMode === 'coinflip' ? COIN_MAX_BET : SLOTS_MAX_BET;
-    if (n < minBet) return minBet.toString();
+    if (n < minBet) return n.toString();
     if (n > maxBet) return maxBet.toString();
     return n.toString();
   }
@@ -160,23 +161,24 @@ export default function Gambling({ onBack, onActionComplete }) {
       setMessage(`Bet must be between ${COIN_MIN_BET} and ${COIN_MAX_BET}`);
       return;
     }
+    if (balance !== null && nBet > balance) {
+      setMessage('Insufficient balance');
+      return;
+    }
     setProcessing(true);
     setFlipping(true);
     setAnimName('');
     setLandSide(null);
     try {
       const data = await api.coinFlip(nBet, side);
-      let win = false;
-      let net = 0;
-      let serverOk = false;
-      if (data && data.ok) {
-        serverOk = true;
-        net = Number(data.net || 0);
-        win = net > 0;
-      } else {
-        win = Math.random() < 0.5;
-        net = win ? nBet : -nBet;
+      if (!data || !data.ok) {
+        setMessage(data?.error || 'Failed to flip coin');
+        setProcessing(false);
+        setFlipping(false);
+        return;
       }
+      const net = Number(data.net || 0);
+      const win = net > 0;
       const finalSide = win ? side : (side === 'heads' ? 'tails' : 'heads');
       const animToUse = finalSide === 'heads' ? 'spinToHead' : 'spinToTail';
       setAnimName(animToUse);
@@ -184,7 +186,7 @@ export default function Gambling({ onBack, onActionComplete }) {
         setFlipping(false);
         setLandSide(finalSide);
         setAnimName('');
-        setResult({ server: serverOk, win, net, message: data && data.message ? data.message : null });
+        setResult({ server: true, win, net, message: data.message });
         setMessage(win ? `You won $${Math.abs(net).toFixed(2)}` : `You lost $${Math.abs(net).toFixed(2)}`);
         if (onActionComplete && typeof onActionComplete === 'function') {
           onActionComplete({ animate: { amount: Math.abs(net), type: win ? 'up' : 'down' }, keepView: true });
@@ -193,23 +195,9 @@ export default function Gambling({ onBack, onActionComplete }) {
         setProcessing(false);
       }, ANIM_DURATION + 60);
     } catch (err) {
-      const localWin = Math.random() < 0.5;
-      const net = localWin ? nBet : -nBet;
-      const finalSide = localWin ? side : (side === 'heads' ? 'tails' : 'heads');
-      const animToUse = finalSide === 'heads' ? 'spinToHead' : 'spinToTail';
-      setAnimName(animToUse);
-      animTimerRef.current = setTimeout(async () => {
-        setFlipping(false);
-        setLandSide(finalSide);
-        setAnimName('');
-        setResult({ server: false, win: localWin, net, message: 'network error, simulated result' });
-        setMessage(localWin ? `You won $${nBet.toFixed(2)} (simulated)` : `You lost $${nBet.toFixed(2)} (simulated)`);
-        if (onActionComplete && typeof onActionComplete === 'function') {
-          onActionComplete({ animate: { amount: Math.abs(net), type: net > 0 ? 'up' : 'down' }, keepView: true });
-        }
-        await refreshBalance();
-        setProcessing(false);
-      }, ANIM_DURATION + 60);
+      setMessage('Network error, please try again');
+      setProcessing(false);
+      setFlipping(false);
     }
   }
 
@@ -219,6 +207,10 @@ export default function Gambling({ onBack, onActionComplete }) {
     const nBet = Number(bet);
     if (!nBet || nBet < SLOTS_MIN_BET || nBet > SLOTS_MAX_BET) {
       setMessage(`Bet must be between $${SLOTS_MIN_BET} and $${SLOTS_MAX_BET.toLocaleString()}`);
+      return;
+    }
+    if (balance !== null && nBet > balance) {
+      setMessage('Insufficient balance');
       return;
     }
     setProcessing(true);
@@ -236,48 +228,22 @@ export default function Gambling({ onBack, onActionComplete }) {
         spinAudioRef.current = null;
       }
       const data = await api.playSlots(nBet);
-      let win = false;
-      let net = 0;
-      let serverOk = false;
-      let finalReels = [SLOT_SYMBOLS[0], SLOT_SYMBOLS[0], SLOT_SYMBOLS[0]];
-      if (data && data.ok) {
-        serverOk = true;
-        if (Array.isArray(data.reels) && data.reels.length === 3) {
-          finalReels = data.reels;
-        } else if (typeof data.reels === 'string' && data.reels.length > 0) {
-          finalReels = normalizeReels(data.reels);
-        } else {
-          finalReels = [
-            SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
-            SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
-            SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]
-          ];
-        }
-        if (typeof data.net !== 'undefined') {
-          net = Number(data.net);
-        } else {
-          net = computeNetFromReels(nBet, finalReels);
-        }
-        win = net > 0;
-      } else {
-        const rand = Math.random();
-        if (rand < 0.05) {
-          const sym = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
-          finalReels = [sym, sym, sym];
-          const combo = `${sym}${sym}${sym}`;
-          const multiplier = SLOT_PAYOUTS[combo] || 0;
-          net = nBet * (multiplier - 1);
-          win = true;
-        } else {
-          finalReels = [
-            SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
-            SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
-            SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]
-          ];
-          net = computeNetFromReels(nBet, finalReels);
-          win = net > 0;
-        }
+      if (!data || !data.ok) {
+        if (spinAudioRef.current) try { spinAudioRef.current.pause(); spinAudioRef.current.currentTime = 0; } catch(e) {}
+        setMessage(data?.error || 'Failed to spin slots');
+        setProcessing(false);
+        setSpinning(false);
+        return;
       }
+      let finalReels = [SLOT_SYMBOLS[0], SLOT_SYMBOLS[0], SLOT_SYMBOLS[0]];
+      if (Array.isArray(data.reels) && data.reels.length === 3) {
+        finalReels = data.reels;
+      } else if (typeof data.reels === 'string' && data.reels.length > 0) {
+        finalReels = normalizeReels(data.reels);
+      }
+      const net = Number(data.net);
+      const win = net > 0;
+      
       animTimerRef.current = setTimeout(async () => {
         if (spinAudioRef.current) try { spinAudioRef.current.pause(); spinAudioRef.current.currentTime = 0; } catch(e) {}
         if (win) {
@@ -301,7 +267,7 @@ export default function Gambling({ onBack, onActionComplete }) {
         }
         setSlotReels(finalReels);
         setSpinning(false);
-        setResult({ server: serverOk, win, net, message: data && data.message ? data.message : null });
+        setResult({ server: true, win, net, message: data.message });
         setMessage(win ? `You won $${Math.abs(net).toFixed(2)}` : `You lost $${Math.abs(net).toFixed(2)}`);
         if (onActionComplete && typeof onActionComplete === 'function') {
           onActionComplete({ animate: { amount: Math.abs(net), type: win ? 'up' : 'down' }, keepView: true });
@@ -310,57 +276,10 @@ export default function Gambling({ onBack, onActionComplete }) {
         setProcessing(false);
       }, SLOT_SPIN_DURATION);
     } catch (err) {
-      const rand = Math.random();
-      let finalReels = [SLOT_SYMBOLS[0], SLOT_SYMBOLS[0], SLOT_SYMBOLS[0]];
-      let net = -nBet;
-      let win = false;
-      if (rand < 0.05) {
-        const sym = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
-        finalReels = [sym, sym, sym];
-        const combo = `${sym}${sym}${sym}`;
-        const multiplier = SLOT_PAYOUTS[combo] || 0;
-        net = nBet * (multiplier - 1);
-        win = true;
-      } else {
-        finalReels = [
-          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
-          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)],
-          SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]
-        ];
-        net = computeNetFromReels(nBet, finalReels);
-        win = net > 0;
-      }
-      animTimerRef.current = setTimeout(async () => {
-        if (spinAudioRef.current) try { spinAudioRef.current.pause(); spinAudioRef.current.currentTime = 0; } catch(e) {}
-        if (win) {
-          try {
-            winAudioRef.current = new Audio(SLOT_WIN_AUDIO);
-            winAudioRef.current.loop = false;
-            const p = winAudioRef.current.play();
-            if (p && p.catch) p.catch(() => {});
-          } catch (e) {
-            winAudioRef.current = null;
-          }
-        } else {
-          try {
-            loseAudioRef.current = new Audio(SLOT_LOSE_AUDIO);
-            loseAudioRef.current.loop = false;
-            const p = loseAudioRef.current.play();
-            if (p && p.catch) p.catch(() => {});
-          } catch (e) {
-            loseAudioRef.current = null;
-          }
-        }
-        setSlotReels(finalReels);
-        setSpinning(false);
-        setResult({ server: false, win, net, message: 'network error, simulated result' });
-        setMessage(win ? `You won $${Math.abs(net).toFixed(2)} (simulated)` : `You lost $${Math.abs(net).toFixed(2)} (simulated)`);
-        if (onActionComplete && typeof onActionComplete === 'function') {
-          onActionComplete({ animate: { amount: Math.abs(net), type: net > 0 ? 'up' : 'down' }, keepView: true });
-        }
-        await refreshBalance();
-        setProcessing(false);
-      }, SLOT_SPIN_DURATION);
+      if (spinAudioRef.current) try { spinAudioRef.current.pause(); spinAudioRef.current.currentTime = 0; } catch(e) {}
+      setMessage('Network error, please try again');
+      setProcessing(false);
+      setSpinning(false);
     }
   }
 
@@ -583,7 +502,7 @@ export default function Gambling({ onBack, onActionComplete }) {
             <div className="result-display">
               <div className="result-label">Result</div>
               <div className={`result-value ${result ? (result.win ? 'win' : 'loss') : ''}`}>
-                {result ? (result.win ? `+$${Math.abs(result.net).toFixed(2)}` : `-$${Math.abs(result.net).toFixed(2)}`) : '—'}
+                {result ? (result.win ? `+${Math.abs(result.net).toFixed(2)}` : `-${Math.abs(result.net).toFixed(2)}`) : '—'}
               </div>
             </div>
           </div>
@@ -600,7 +519,7 @@ export default function Gambling({ onBack, onActionComplete }) {
             <div className="result-display">
               <div className="result-label">Result</div>
               <div className={`result-value ${result ? (result.win ? 'win' : 'loss') : ''}`}>
-                {result ? (result.win ? `+$${Math.abs(result.net).toFixed(2)}` : `-$${Math.abs(result.net).toFixed(2)}`) : '—'}
+                {result ? (result.win ? `+${Math.abs(result.net).toFixed(2)}` : `-${Math.abs(result.net).toFixed(2)}`) : '—'}
               </div>
             </div>
 
@@ -634,7 +553,7 @@ export default function Gambling({ onBack, onActionComplete }) {
               {result.server ? '✓ Server Result' : '⚠ Simulated Result'}
             </span>
             <span className={`result-footer-value ${result.win ? 'win' : 'loss'}`}>
-              {result.win ? `+$${Math.abs(result.net).toFixed(2)}` : `-$${Math.abs(result.net).toFixed(2)}`}
+              {result.win ? `+${Math.abs(result.net).toFixed(2)}` : `-${Math.abs(result.net).toFixed(2)}`}
             </span>
           </div>
         )}
