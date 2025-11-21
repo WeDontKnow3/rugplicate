@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import * as api from '../api';
 import { useTranslation } from 'react-i18next';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://devsite-backend-production.up.railway.app';
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export default function Market({ onOpenCoin, onActionComplete }) {
   const { t } = useTranslation();
