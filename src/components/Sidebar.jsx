@@ -1,6 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react';
-import * as api from '../api';
-import ApiKeyPanel from './ApiKeyPanel';
 
 export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
   const [me, setMe] = useState(null);
@@ -13,8 +11,6 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
   const wsRef = useRef(null);
   const reconnectRef = useRef({ attempts: 0, timeout: null });
 
-  const [showApiPanel, setShowApiPanel] = useState(false);
-
   function navigate(to) {
     if (onNavigate && typeof onNavigate === 'function') onNavigate(to);
     else window.location.hash = '#' + to;
@@ -24,20 +20,33 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
   async function fetchMe() {
     setLoading(true);
     try {
-      const res = await api.getMe();
-      if (res && res.user) {
-        const nowBal = Number(res.user.usd_balance || 0);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setMe(null);
+        setLoading(false);
+        return;
+      }
+      
+      const res = await fetch(`${import.meta.env.VITE_API_BASE || 'https://devsite-backend-production.up.railway.app'}/api/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+      
+      if (data && data.user) {
+        const nowBal = Number(data.user.usd_balance || 0);
         const prev = prevBalanceRef.current;
         if (prev != null && nowBal !== prev) {
           setBalanceAnim(nowBal > prev ? 'up' : 'down');
           setTimeout(() => setBalanceAnim(null), 1200);
         }
         prevBalanceRef.current = nowBal;
-        setMe(res.user);
+        setMe(data.user);
       } else {
         setMe(null);
       }
     } catch (err) {
+      setMe(null);
     } finally {
       setLoading(false);
     }
@@ -138,13 +147,6 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
     else window.location.reload();
   }
 
-  function fmtTime(iso) {
-    try {
-      const d = new Date(iso);
-      return d.toLocaleTimeString();
-    } catch (e) { return iso; }
-  }
-
   return (
     <>
       <div
@@ -169,6 +171,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
           <NavItem active={view === 'leaderboard'} label="Leaderboard" onClick={() => navigate('leaderboard')} icon="leaderboard" />
           <NavItem active={view === 'promos'} label="Promocodes" onClick={() => navigate('promos')} icon="promo" />
           <NavItem active={view === 'gambling'} label="Gambling" onClick={() => navigate('gambling')} icon="gambling" />
+          <NavItem active={view === 'apikeys'} label="API Keys" onClick={() => navigate('apikeys')} icon="apikey" />
           <NavItem active={view === 'settings'} label="Settings" onClick={() => navigate('settings')} icon="settings" />
           {me && me.is_admin && (
             <NavItem active={view === 'admin'} label="Admin" onClick={() => navigate('admin')} icon="admin" />
@@ -213,25 +216,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
                     </span>
                   </div>
                 </div>
-                <button 
-                  className="api-key-btn" 
-                  onClick={() => setShowApiPanel(!showApiPanel)}
-                  title="API Keys"
-                  style={{ 
-                    marginLeft: 'auto',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: 'none',
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    fontSize: 16
-                  }}
-                >
-                  🔑
-                </button>
               </div>
-
-              {showApiPanel && <ApiKeyPanel onClose={() => setShowApiPanel(false)} />}
 
               <button className="logout-btn" onClick={handleLogout} aria-label="Logout">⎋ Logout</button>
             </>
@@ -307,6 +292,12 @@ function Icon({ name }) {
           <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.4" fill="none"/>
           <circle cx="8.5" cy="11.5" r="1.2" fill="currentColor"/>
           <rect x="11" y="9" width="6" height="4" rx="0.8" fill="currentColor"/>
+        </svg>
+      );
+    case 'apikey':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+          <path d="M7 14C5.9 14 5 13.1 5 12C5 10.9 5.9 10 7 10C8.1 10 9 10.9 9 12C9 13.1 8.1 14 7 14ZM12.6 10C11.8 7.7 9.6 6 7 6C3.7 6 1 8.7 1 12C1 15.3 3.7 18 7 18C9.6 18 11.8 16.3 12.6 14H16V18H20V14H23V10H12.6Z" fill="currentColor"/>
         </svg>
       );
     case 'settings':
