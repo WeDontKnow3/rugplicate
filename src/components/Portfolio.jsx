@@ -82,8 +82,8 @@ export default function Portfolio({ onActionComplete }) {
     setMsg('');
     
     const amount = Number(transferAmount);
-    if (!amount || amount < 10) {
-      setMsg('Minimum transfer amount is $10');
+    if (!amount || amount <= 0) {
+      setMsg('Enter a valid amount');
       return;
     }
     
@@ -94,6 +94,11 @@ export default function Portfolio({ onActionComplete }) {
     
     if (transferType === 'token' && !transferSymbol) {
       setMsg('Select a token to transfer');
+      return;
+    }
+
+    if (transferType === 'usd' && amount < 10) {
+      setMsg('Minimum transfer amount is $10');
       return;
     }
 
@@ -234,7 +239,7 @@ export default function Portfolio({ onActionComplete }) {
 
             <div style={{marginBottom:12}}>
               <label className="small muted" style={{display:'block', marginBottom:4}}>
-                Amount (min: {transferType === 'usd' ? '$10' : '10 tokens'})
+                {transferType === 'usd' ? 'Amount (min: $10)' : 'Token Amount (min value: $10)'}
               </label>
               <input
                 type="number"
@@ -242,8 +247,8 @@ export default function Portfolio({ onActionComplete }) {
                 placeholder="Amount"
                 value={transferAmount}
                 onChange={e => setTransferAmount(e.target.value)}
-                min="10"
-                step="0.01"
+                min="0"
+                step={transferType === 'usd' ? '0.01' : '1'}
                 style={{width:'100%'}}
               />
             </div>
