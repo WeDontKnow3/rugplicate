@@ -14,6 +14,7 @@ import Notifications from './components/Notifications';
 import Gambling from './components/Gambling';
 import Promocodes from './components/Promocodes';
 import ApiKeyPanel from './components/ApiKeyPanel';
+import Hopium from './components/Hopium';
 import { useTranslation } from 'react-i18next';
 
 let animId = 1;
@@ -165,6 +166,7 @@ export default function App() {
               {view === 'promos' && 'Promocodes'}
               {view === 'notifications' && 'Notifications'}
               {view === 'apikeys' && 'API Keys'}
+              {view === 'hopium' && 'Hopium'}
             </h1>
           </div>
 
@@ -263,6 +265,10 @@ export default function App() {
 
           {user && view === 'gambling' && (
             <Gambling onBack={() => setView('market')} onActionComplete={handleActionComplete} />
+          )}
+
+          {user && view === 'hopium' && (
+            <Hopium onActionComplete={handleActionComplete} />
           )}
 
           {user && view === 'notifications' && (
