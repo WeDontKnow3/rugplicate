@@ -206,6 +206,10 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
     error: 'Error'
   };
 
+  useEffect(() => {
+    if (typeof setOpen === 'function') setOpen(false);
+  }, []);
+
   return (
     <>
       <div
