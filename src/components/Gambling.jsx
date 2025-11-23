@@ -4,7 +4,7 @@ import * as api from '../api';
 const COIN_MIN_BET = 1;
 const COIN_MAX_BET = 1000000;
 const SLOTS_MIN_BET = 0.01;
-const SLOTS_MAX_BET = 1000000;
+const SLOTS_MAX_BET = 10000000;
 const ANIM_DURATION = 1100;
 const SLOT_SPIN_DURATION = 2000;
 
@@ -17,7 +17,7 @@ const SLOT_LOSE_AUDIO = '/assets/slot-lose.mp3';
 
 const SLOT_SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '💎', '7️⃣', '⭐'];
 const SLOT_PAYOUTS = {
-  '🍒🍒🍒': 2,
+  '🍒🍒🍒': 2.5,
   '🍋🍋🍋': 3,
   '🍊🍊🍊': 5,
   '🍇🍇🍇': 8,
