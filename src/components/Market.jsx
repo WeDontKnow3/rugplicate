@@ -157,6 +157,11 @@ export default function Market({ onOpenCoin, onActionComplete }) {
     }
   }
 
+  const lightOutline = {
+    WebkitTextStroke: '0.6px rgba(0,0,0,0.55)',
+    textShadow: '-0.6px -0.6px 0 rgba(0,0,0,0.55), 0.6px -0.6px 0 rgba(0,0,0,0.55), -0.6px 0.6px 0 rgba(0,0,0,0.55), 0.6px 0.6px 0 rgba(0,0,0,0.55)'
+  };
+
   return (
     <div className="page">
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
@@ -229,13 +234,13 @@ export default function Market({ onOpenCoin, onActionComplete }) {
                 {logoUrl ? (
                   <img src={logoUrl} alt={c.symbol} style={{width:48,height:48,objectFit:'cover',borderRadius:8}} />
                 ) : (
-                  <div style={{width:48,height:48,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:8,background:'linear-gradient(135deg,var(--accent),var(--accent-2))',fontWeight:800,color:'#fff', WebkitTextStroke: theme === 'light' ? '1.2px rgba(0,0,0,0.8)' : '0', WebkitTextFillColor: '#fff'}}>
+                  <div style={{width:48,height:48,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:8,background:'linear-gradient(135deg,var(--accent),var(--accent-2))',fontWeight:800,color:'#fff', ...(theme === 'light' ? lightOutline : {})}}>
                     {c.symbol.slice(0,3)}
                   </div>
                 )}
 
                 <div style={{display:'flex',flexDirection:'column'}}>
-                  <button className="link-btn" onClick={() => onOpenCoin(c.symbol)} style={{ color: '#fff', WebkitTextStroke: theme === 'light' ? '1.2px rgba(0,0,0,0.8)' : '0', WebkitTextFillColor: '#fff' }}>
+                  <button className="link-btn" onClick={() => onOpenCoin(c.symbol)} style={{ color: '#fff', ...(theme === 'light' ? lightOutline : {}) }}>
                     {c.symbol}
                   </button>
                   <div className="name">{c.name}</div>
