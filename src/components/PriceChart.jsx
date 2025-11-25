@@ -32,13 +32,26 @@ export default function PriceChart({ series = [] }) {
           }
         });
 
-        const line = chart.addLineSeries({ color: '#26a69a', lineWidth: 2 });
+        const candlestickSeries = chart.addCandlestickSeries({
+          upColor: '#26a69a',
+          downColor: '#ef5350',
+          borderUpColor: '#26a69a',
+          borderDownColor: '#ef5350',
+          wickUpColor: '#26a69a',
+          wickDownColor: '#ef5350'
+        });
 
         const setData = (s) => {
           const data = s
-            .filter(p => p.price != null)
-            .map(p => ({ time: Math.floor(new Date(p.t).getTime() / 1000), value: Number(p.price) }));
-          line.setData(data);
+            .filter(p => p.open != null && p.high != null && p.low != null && p.close != null)
+            .map(p => ({
+              time: Math.floor(new Date(p.time).getTime() / 1000),
+              open: Number(p.open),
+              high: Number(p.high),
+              low: Number(p.low),
+              close: Number(p.close)
+            }));
+          candlestickSeries.setData(data);
         };
 
         setData(series);
@@ -46,7 +59,7 @@ export default function PriceChart({ series = [] }) {
         const handleResize = () => chart.applyOptions({ width: containerRef.current.clientWidth });
         window.addEventListener('resize', handleResize);
 
-        chartRef.current = { chart, line, setData, handleResize };
+        chartRef.current = { chart, candlestickSeries, setData, handleResize };
       })
       .catch(err => {
         console.warn('lightweight-charts import failed (fallback enabled):', err);
@@ -64,7 +77,6 @@ export default function PriceChart({ series = [] }) {
         chartRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   useEffect(() => {
@@ -82,7 +94,7 @@ export default function PriceChart({ series = [] }) {
     );
   }
 
-  const points = series.filter(p => p.price != null);
+  const points = series.filter(p => p.close != null);
   if (points.length === 0) {
     return (
       <div style={{ padding: 18, borderRadius: 10, background: 'rgba(255,255,255,0.02)', color: '#cfe6ff' }}>
@@ -92,56 +104,43 @@ export default function PriceChart({ series = [] }) {
     );
   }
 
-  // prepare data for SVG
   const w = containerRef.current ? containerRef.current.clientWidth : 760;
   const h = 260;
   const padding = { left: 36, right: 10, top: 12, bottom: 24 };
   const innerW = Math.max(10, w - padding.left - padding.right);
   const innerH = Math.max(10, h - padding.top - padding.bottom);
 
-  // map times sorted ascending
-  const sorted = [...points].sort((a,b) => new Date(a.t) - new Date(b.t));
-  const prices = sorted.map(p => Number(p.price));
-  const minP = Math.min(...prices);
-  const maxP = Math.max(...prices);
+  const sorted = [...points].sort((a,b) => new Date(a.time) - new Date(b.time));
+  const allPrices = sorted.flatMap(p => [p.open, p.high, p.low, p.close]);
+  const minP = Math.min(...allPrices);
+  const maxP = Math.max(...allPrices);
   const range = maxP - minP || maxP || 1;
 
-  const xs = sorted.map((p, i) => {
-    const ratio = sorted.length === 1 ? 0.5 : i / (sorted.length - 1);
-    return padding.left + ratio * innerW;
-  });
-  const ys = sorted.map((p) => {
-    const ratio = (Number(p.price) - minP) / range;
+  const candleWidth = Math.max(2, innerW / sorted.length - 2);
+
+  function priceToY(price) {
+    const ratio = (Number(price) - minP) / range;
     return padding.top + (1 - ratio) * innerH;
-  });
+  }
 
-  // build path
-  const pathD = xs.map((x, i) => `${i===0 ? 'M' : 'L'} ${x.toFixed(2)} ${ys[i].toFixed(2)}`).join(' ');
-  const areaD = `${pathD} L ${xs[xs.length-1].toFixed(2)} ${ (padding.top + innerH).toFixed(2) } L ${xs[0].toFixed(2)} ${(padding.top + innerH).toFixed(2)} Z`;
-
-  // axis labels (left)
-  const ticks = 4;
-  const tickVals = Array.from({length: ticks+1}, (_,i) => minP + (i/ticks)*range).reverse();
-
-  // tooltip handling: basic nearest point
   function handleMouseMove(e) {
     const rect = e.currentTarget.getBoundingClientRect();
     const mx = e.clientX - rect.left;
-    // find nearest x index
-    let nearest = 0;
-    let bestDist = Infinity;
-    xs.forEach((x,i) => {
-      const d = Math.abs(x - mx);
-      if (d < bestDist) { bestDist = d; nearest = i; }
-    });
-    setHover({ idx: nearest, x: xs[nearest], y: ys[nearest], item: sorted[nearest] });
+    const candleSpacing = innerW / sorted.length;
+    const idx = Math.floor((mx - padding.left) / candleSpacing);
+    if (idx >= 0 && idx < sorted.length) {
+      setHover({ idx, item: sorted[idx] });
+    }
   }
+  
   function handleMouseLeave() { setHover(null); }
+
+  const ticks = 4;
+  const tickVals = Array.from({length: ticks+1}, (_,i) => minP + (i/ticks)*range).reverse();
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: h, position: 'relative', borderRadius: 8, overflow: 'hidden', background: 'linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.003))' }}>
       <svg width={w} height={h} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{display:'block'}}>
-        {/* left axis labels */}
         <g>
           {tickVals.map((v,i) => {
             const ty = padding.top + (i / ticks) * innerH;
@@ -149,36 +148,73 @@ export default function PriceChart({ series = [] }) {
           })}
         </g>
 
-        {/* area fill */}
-        <path d={areaD} fill="rgba(38,166,154,0.08)" stroke="none" />
+        {sorted.map((candle, i) => {
+          const x = padding.left + (i / sorted.length) * innerW + (innerW / sorted.length) / 2;
+          const yOpen = priceToY(candle.open);
+          const yClose = priceToY(candle.close);
+          const yHigh = priceToY(candle.high);
+          const yLow = priceToY(candle.low);
+          
+          const isUp = candle.close >= candle.open;
+          const color = isUp ? '#26a69a' : '#ef5350';
+          const bodyTop = Math.min(yOpen, yClose);
+          const bodyHeight = Math.max(1, Math.abs(yClose - yOpen));
 
-        {/* line */}
-        <path d={pathD} fill="none" stroke="#26a69a" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+          return (
+            <g key={i}>
+              <line x1={x} x2={x} y1={yHigh} y2={yLow} stroke={color} strokeWidth={1} />
+              <rect 
+                x={x - candleWidth / 2} 
+                y={bodyTop} 
+                width={candleWidth} 
+                height={bodyHeight} 
+                fill={color}
+                opacity={hover?.idx === i ? 0.8 : 0.9}
+              />
+            </g>
+          );
+        })}
 
-        {/* points (invisible but for hit target) */}
-        {xs.map((x,i) => <circle key={i} cx={x} cy={ys[i]} r={2} fill="#26a69a" opacity={0.0} />)}
-
-        {/* optional hover marker */}
         {hover && (
-          <g>
-            <line x1={hover.x} x2={hover.x} y1={padding.top} y2={padding.top + innerH} stroke="rgba(255,255,255,0.06)" />
-            <circle cx={hover.x} cy={hover.y} r={4} fill="#fff" stroke="#02695d" strokeWidth={2} />
-          </g>
+          <line 
+            x1={padding.left + (hover.idx / sorted.length) * innerW + (innerW / sorted.length) / 2} 
+            x2={padding.left + (hover.idx / sorted.length) * innerW + (innerW / sorted.length) / 2}
+            y1={padding.top} 
+            y2={padding.top + innerH} 
+            stroke="rgba(255,255,255,0.1)" 
+            strokeWidth={1}
+          />
         )}
       </svg>
 
-      {/* tooltip */}
       {hover && (
         <div style={{
-          position:'absolute', left: Math.min(w - 180, hover.x + 8), top: Math.max(6, hover.y - 36),
-          background: 'rgba(2,6,23,0.9)', color:'#d1e6ff', padding:'8px 10px', borderRadius:8, fontSize:13, pointerEvents:'none', boxShadow:'0 8px 24px rgba(2,6,23,0.4)'
+          position:'absolute', 
+          left: Math.min(w - 200, padding.left + (hover.idx / sorted.length) * innerW + 8), 
+          top: 8,
+          background: 'rgba(2,6,23,0.95)', 
+          color:'#d1e6ff', 
+          padding:'10px 12px', 
+          borderRadius:8, 
+          fontSize:12, 
+          pointerEvents:'none', 
+          boxShadow:'0 8px 24px rgba(2,6,23,0.4)',
+          border: '1px solid rgba(255,255,255,0.1)'
         }}>
-          <div style={{fontWeight:800}}>{hover.item.price}</div>
-          <div style={{color:'#9fb0d4', fontSize:12}}>{new Date(hover.item.t).toLocaleString()}</div>
+          <div style={{marginBottom:6, fontSize:11, color:'#9fb0d4'}}>
+            {new Date(hover.item.time).toLocaleString()}
+          </div>
+          <div style={{display:'flex', gap:'12px', fontSize:11}}>
+            <div><span style={{color:'#9fb0d4'}}>O:</span> {hover.item.open}</div>
+            <div><span style={{color:'#9fb0d4'}}>H:</span> {hover.item.high}</div>
+          </div>
+          <div style={{display:'flex', gap:'12px', fontSize:11, marginTop:2}}>
+            <div><span style={{color:'#9fb0d4'}}>L:</span> {hover.item.low}</div>
+            <div><span style={{color:'#9fb0d4'}}>C:</span> {hover.item.close}</div>
+          </div>
         </div>
       )}
 
-      {/* small notice */}
       <div style={{ position:'absolute', left:10, bottom:6, color:'#9fb0d4', fontSize:12 }}>
         {libErrorMsg ? 'graphic loaded' : 'loaded'}
       </div>
