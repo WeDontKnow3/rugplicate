@@ -5,6 +5,10 @@ const COIN_MIN_BET = 1;
 const COIN_MAX_BET = 1000000000;
 const SLOTS_MIN_BET = 0.01;
 const SLOTS_MAX_BET = 1000000000;
+const MINES_MIN_BET = 0.01;
+const MINES_MAX_BET = 10000000;
+const MINES_MIN_BOMBS = 3;
+const MINES_MAX_BOMBS = 23;
 const ANIM_DURATION = 1100;
 const SLOT_SPIN_DURATION = 2000;
 
@@ -41,6 +45,10 @@ export default function Gambling({ onBack, onActionComplete }) {
   const [displayReels, setDisplayReels] = useState([SLOT_SYMBOLS[0], SLOT_SYMBOLS[0], SLOT_SYMBOLS[0]]);
   const [spinning, setSpinning] = useState(false);
   const [balance, setBalance] = useState(null);
+  const [minesBombs, setMinesBombs] = useState(5);
+  const [minesGameState, setMinesGameState] = useState(null);
+  const [minesGrid, setMinesGrid] = useState(Array(25).fill(null));
+  const [minesMultiplier, setMinesMultiplier] = useState(0);
   const animTimerRef = useRef(null);
   const reelIntervalRef = useRef(null);
   const spinAudioRef = useRef(null);
@@ -86,29 +94,31 @@ export default function Gambling({ onBack, onActionComplete }) {
     };
   }, [spinning, slotReels]);
 
-  const currentMinBet = gameMode === 'coinflip' ? COIN_MIN_BET : SLOTS_MIN_BET;
-  const currentMaxBet = gameMode === 'coinflip' ? COIN_MAX_BET : SLOTS_MAX_BET;
+  const currentMinBet = gameMode === 'coinflip' ? COIN_MIN_BET : gameMode === 'slots' ? SLOTS_MIN_BET : MINES_MIN_BET;
+  const currentMaxBet = gameMode === 'coinflip' ? COIN_MAX_BET : gameMode === 'slots' ? SLOTS_MAX_BET : MINES_MAX_BET;
 
   function clampBet(v) {
     if (!v || v === '') return '';
     const n = Number(v);
     if (!Number.isFinite(n)) return '';
-    const minBet = gameMode === 'coinflip' ? COIN_MIN_BET : SLOTS_MIN_BET;
-    const maxBet = gameMode === 'coinflip' ? COIN_MAX_BET : SLOTS_MAX_BET;
+    const minBet = gameMode === 'coinflip' ? COIN_MIN_BET : gameMode === 'slots' ? SLOTS_MIN_BET : MINES_MIN_BET;
+    const maxBet = gameMode === 'coinflip' ? COIN_MAX_BET : gameMode === 'slots' ? SLOTS_MAX_BET : MINES_MAX_BET;
     if (n < minBet) return n.toString();
     if (n > maxBet) return maxBet.toString();
     return n.toString();
   }
 
   function switchGame(direction) {
-    if (processing || flipping || spinning) return;
+    if (processing || flipping || spinning || minesGameState) return;
     setMessage(null);
     setResult(null);
     setBet('');
+    const modes = ['coinflip', 'slots', 'mines'];
+    const currentIndex = modes.indexOf(gameMode);
     if (direction === 'next') {
-      setGameMode(gameMode === 'coinflip' ? 'slots' : 'coinflip');
+      setGameMode(modes[(currentIndex + 1) % modes.length]);
     } else {
-      setGameMode(gameMode === 'slots' ? 'coinflip' : 'slots');
+      setGameMode(modes[(currentIndex - 1 + modes.length) % modes.length]);
     }
   }
 
@@ -283,6 +293,97 @@ export default function Gambling({ onBack, onActionComplete }) {
     }
   }
 
+  async function handleMinesStart() {
+    setMessage(null);
+    setResult(null);
+    const nBet = Number(bet);
+    if (!nBet || nBet < MINES_MIN_BET || nBet > MINES_MAX_BET) {
+      setMessage(`Bet must be between $${MINES_MIN_BET} and $${MINES_MAX_BET.toLocaleString()}`);
+      return;
+    }
+    if (balance !== null && nBet > balance) {
+      setMessage('Insufficient balance');
+      return;
+    }
+    if (minesBombs < MINES_MIN_BOMBS || minesBombs > MINES_MAX_BOMBS) {
+      setMessage(`Bombs must be between ${MINES_MIN_BOMBS} and ${MINES_MAX_BOMBS}`);
+      return;
+    }
+    setProcessing(true);
+    try {
+      const data = await api.minesStart(nBet, minesBombs);
+      if (!data || !data.ok) {
+        setMessage(data?.error || 'Failed to start game');
+        setProcessing(false);
+        return;
+      }
+      setMinesGameState(data.gameState);
+      setMinesGrid(Array(25).fill(null));
+      setMinesMultiplier(1);
+      setProcessing(false);
+      await refreshBalance();
+    } catch (err) {
+      setMessage('Network error, please try again');
+      setProcessing(false);
+    }
+  }
+
+  async function handleMinesReveal(index) {
+    if (!minesGameState || processing) return;
+    setProcessing(true);
+    try {
+      const data = await api.minesReveal(minesGameState.gameId, index);
+      if (!data || !data.ok) {
+        setMessage(data?.error || 'Failed to reveal');
+        setProcessing(false);
+        return;
+      }
+      const newGrid = [...minesGrid];
+      newGrid[index] = data.isBomb ? 'bomb' : 'safe';
+      setMinesGrid(newGrid);
+      setMinesMultiplier(data.multiplier);
+      
+      if (data.gameOver) {
+        if (data.isBomb) {
+          setMessage(`Game Over! You lost $${Math.abs(data.net).toFixed(2)}`);
+          if (onActionComplete) {
+            onActionComplete({ animate: { amount: Math.abs(data.net), type: 'down' }, keepView: true });
+          }
+        }
+        setMinesGameState(null);
+        await refreshBalance();
+      }
+      setProcessing(false);
+    } catch (err) {
+      setMessage('Network error, please try again');
+      setProcessing(false);
+    }
+  }
+
+  async function handleMinesCashout() {
+    if (!minesGameState || processing) return;
+    setProcessing(true);
+    try {
+      const data = await api.minesCashout(minesGameState.gameId);
+      if (!data || !data.ok) {
+        setMessage(data?.error || 'Failed to cashout');
+        setProcessing(false);
+        return;
+      }
+      setMessage(`Cashed out! You won $${data.profit.toFixed(2)}`);
+      setResult({ server: true, win: true, net: data.profit });
+      if (onActionComplete) {
+        onActionComplete({ animate: { amount: data.profit, type: 'up' }, keepView: true });
+      }
+      setMinesGameState(null);
+      await refreshBalance();
+      setProcessing(false);
+    } catch (err) {
+      setMessage('Network error, please try again');
+      setProcessing(false);
+    }
+  }
+
   const coinSize = 220;
 
   return (
@@ -362,6 +463,24 @@ export default function Gambling({ onBack, onActionComplete }) {
         .paytable-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--card);border-radius:6px;font-size:14px}
         .paytable-symbols{font-size:18px}
         .paytable-multiplier{font-weight:700;color:var(--success)}
+        .mines-display{display:flex;flex-direction:column;align-items:center;margin:40px 0}
+        .mines-stats{display:flex;gap:24px;margin-bottom:24px;justify-content:center}
+        .mines-stat{text-align:center}
+        .mines-stat-label{font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:4px}
+        .mines-stat-value{font-size:24px;font-weight:800;color:var(--text-primary)}
+        .mines-stat-value.multiplier{color:var(--success)}
+        .mines-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:24px}
+        .mines-cell{width:70px;height:70px;background:var(--card);border:2px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:32px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden}
+        .mines-cell:hover:not(.revealed):not(.disabled){transform:translateY(-2px);border-color:var(--danger);box-shadow:0 4px 12px rgba(239,68,68,0.2)}
+        .mines-cell.disabled{cursor:not-allowed;opacity:0.5}
+        .mines-cell.revealed{cursor:default;transform:none!important}
+        .mines-cell.safe{background:linear-gradient(135deg,rgba(16,185,129,0.2),rgba(16,185,129,0.05));border-color:var(--success)}
+        .mines-cell.bomb{background:linear-gradient(135deg,rgba(239,68,68,0.2),rgba(239,68,68,0.05));border-color:var(--danger);animation:explode 0.4s ease-out}
+        @keyframes explode{
+          0%{transform:scale(1)}
+          50%{transform:scale(1.2)}
+          100%{transform:scale(1)}
+        }
         .result-display{text-align:center;width:100%}
         .result-label{font-size:13px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
         .result-value{font-size:36px;font-weight:900;color:var(--text-primary);min-height:45px;display:flex;align-items:center;justify-content:center}
@@ -382,6 +501,7 @@ export default function Gambling({ onBack, onActionComplete }) {
           .coin{width:165px;height:165px}
           .coin-shadow{width:90px}
           .slot-reel{width:90px;height:110px;font-size:56px}
+          .mines-cell{width:60px;height:60px;font-size:28px}
           .result-value{font-size:28px}
           .paytable-grid{grid-template-columns:1fr}
         }
@@ -393,6 +513,8 @@ export default function Gambling({ onBack, onActionComplete }) {
           .coin{width:146px;height:146px}
           .coin-shadow{width:80px}
           .slot-reel{width:80px;height:100px;font-size:48px;gap:12px}
+          .mines-cell{width:50px;height:50px;font-size:24px}
+          .mines-grid{gap:6px}
           .result-value{font-size:24px}
         }
       `}</style>
@@ -402,18 +524,18 @@ export default function Gambling({ onBack, onActionComplete }) {
           <button 
             className="game-switch-btn"
             onClick={() => switchGame('prev')}
-            disabled={processing || flipping || spinning}
+            disabled={processing || flipping || spinning || minesGameState}
           >
             ←
           </button>
           <h1 className="gambling-title">
-            <span className="gambling-title-icon">{gameMode === 'coinflip' ? '🎰' : '🎰'}</span>
-            {gameMode === 'coinflip' ? 'Coin Flip' : 'Slots'}
+            <span className="gambling-title-icon">{gameMode === 'coinflip' ? '🪙' : gameMode === 'slots' ? '🎰' : '💣'}</span>
+            {gameMode === 'coinflip' ? 'Coin Flip' : gameMode === 'slots' ? 'Slots' : 'Mines'}
           </h1>
           <button 
             className="game-switch-btn"
             onClick={() => switchGame('next')}
-            disabled={processing || flipping || spinning}
+            disabled={processing || flipping || spinning || minesGameState}
           >
             →
           </button>
@@ -444,10 +566,10 @@ export default function Gambling({ onBack, onActionComplete }) {
                 value={bet}
                 min={currentMinBet}
                 max={currentMaxBet}
-                step={gameMode === 'slots' ? '0.01' : '1'}
+                step={gameMode === 'slots' || gameMode === 'mines' ? '0.01' : '1'}
                 onChange={(e) => setBet(clampBet(e.target.value))}
                 placeholder={`${currentMinBet.toLocaleString()}`}
-                disabled={processing || flipping || spinning}
+                disabled={processing || flipping || spinning || minesGameState}
               />
             </div>
           </div>
@@ -474,16 +596,49 @@ export default function Gambling({ onBack, onActionComplete }) {
             </div>
           )}
 
+          {gameMode === 'mines' && !minesGameState && (
+            <div className="control-group">
+              <label className="control-label">Number of Bombs ({MINES_MIN_BOMBS}-{MINES_MAX_BOMBS})</label>
+              <div className="bet-input-wrapper">
+                <input
+                  type="number"
+                  className="bet-input"
+                  style={{paddingLeft: '16px'}}
+                  value={minesBombs}
+                  min={MINES_MIN_BOMBS}
+                  max={MINES_MAX_BOMBS}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (v >= MINES_MIN_BOMBS && v <= MINES_MAX_BOMBS) setMinesBombs(v);
+                  }}
+                  disabled={processing}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="control-group">
-            <button 
-              className="flip-btn"
-              onClick={gameMode === 'coinflip' ? handleFlip : handleSlotSpin}
-              disabled={processing || flipping || spinning}
-            >
-              {gameMode === 'coinflip' 
-                ? (processing || flipping ? '🎲 Flipping...' : '🎲 Flip Coin')
-                : (processing || spinning ? '🎰 Spinning...' : '🎰 Spin Slots')}
-            </button>
+            {gameMode === 'mines' && minesGameState ? (
+              <button 
+                className="flip-btn"
+                onClick={handleMinesCashout}
+                disabled={processing}
+              >
+                💰 Cashout ${(Number(bet) * minesMultiplier).toFixed(2)}
+              </button>
+            ) : (
+              <button 
+                className="flip-btn"
+                onClick={gameMode === 'coinflip' ? handleFlip : gameMode === 'slots' ? handleSlotSpin : handleMinesStart}
+                disabled={processing || flipping || spinning || minesGameState}
+              >
+                {gameMode === 'coinflip' 
+                  ? (processing || flipping ? '🎲 Flipping...' : '🎲 Flip Coin')
+                  : gameMode === 'slots'
+                  ? (processing || spinning ? '🎰 Spinning...' : '🎰 Spin Slots')
+                  : (processing ? '💣 Starting...' : '💣 Start Game')}
+              </button>
+            )}
           </div>
         </div>
 
@@ -506,7 +661,7 @@ export default function Gambling({ onBack, onActionComplete }) {
               </div>
             </div>
           </div>
-        ) : (
+        ) : gameMode === 'slots' ? (
           <div className="slots-display">
             <div className="slots-machine">
               {displayReels.map((symbol, idx) => (
@@ -539,6 +694,47 @@ export default function Gambling({ onBack, onActionComplete }) {
               </div>
             </div>
           </div>
+        ) : (
+          <div className="mines-display">
+            {minesGameState && (
+              <div className="mines-stats">
+                <div className="mines-stat">
+                  <div className="mines-stat-label">Bombs</div>
+                  <div className="mines-stat-value">💣 {minesBombs}</div>
+                </div>
+                <div className="mines-stat">
+                  <div className="mines-stat-label">Multiplier</div>
+                  <div className="mines-stat-value multiplier">{minesMultiplier.toFixed(2)}x</div>
+                </div>
+                <div className="mines-stat">
+                  <div className="mines-stat-label">Profit</div>
+                  <div className="mines-stat-value multiplier">${((Number(bet) * minesMultiplier) - Number(bet)).toFixed(2)}</div>
+                </div>
+              </div>
+            )}
+
+            <div className="mines-grid">
+              {minesGrid.map((cell, idx) => (
+                <div
+                  key={idx}
+                  className={`mines-cell ${cell ? 'revealed' : ''} ${cell === 'safe' ? 'safe' : ''} ${cell === 'bomb' ? 'bomb' : ''} ${!minesGameState || processing ? 'disabled' : ''}`}
+                  onClick={() => !cell && minesGameState && !processing && handleMinesReveal(idx)}
+                >
+                  {cell === 'safe' && '💎'}
+                  {cell === 'bomb' && '💥'}
+                </div>
+              ))}
+            </div>
+
+            {!minesGameState && result && (
+              <div className="result-display">
+                <div className="result-label">Result</div>
+                <div className={`result-value ${result.win ? 'win' : 'loss'}`}>
+                  {result.win ? `+${Math.abs(result.net).toFixed(2)}` : `-${Math.abs(result.net).toFixed(2)}`}
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {message && (
@@ -547,7 +743,7 @@ export default function Gambling({ onBack, onActionComplete }) {
           </div>
         )}
 
-        {result && (
+        {result && gameMode !== 'mines' && (
           <div className="result-footer">
             <span className="result-footer-label">
               {result.server ? '✓ Server Result' : '⚠ Simulated Result'}
