@@ -93,10 +93,23 @@ export default function App() {
   }
 
   function onLogout() {
-    deleteCookie('token');
-    setUser(null);
-    setBalance(null);
-    setView('market');
+    fetch(`${import.meta.env.VITE_API_BASE || 'https://devsite-backend-production.up.railway.app'}/api/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${getCookie('token')}` }
+    }).then(() => {
+      deleteCookie('token');
+      setUser(null);
+      setBalance(null);
+      setView('market');
+      window.location.reload();
+    }).catch(() => {
+      deleteCookie('token');
+      setUser(null);
+      setBalance(null);
+      setView('market');
+      window.location.reload();
+    });
   }
 
   function triggerMoneyAnimation(amount = 0, type = 'down') {
