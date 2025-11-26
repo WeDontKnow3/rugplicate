@@ -279,7 +279,7 @@ export default function PriceChart({ series = [] }) {
       )}
 
       <div style={{ position:'absolute', left:15, bottom:10, color:'#9fb0d4', fontSize:11 }}>
-        {libErrorMsg ? 'fallback mode' : 'candlesticks'}
+        {libErrorMsg ? 'loaded' : 'candlesticks'}
       </div>
     </div>
   );
