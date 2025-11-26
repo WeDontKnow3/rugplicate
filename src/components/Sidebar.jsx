@@ -37,7 +37,8 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
       }
       
       const res = await fetch(`${import.meta.env.VITE_API_BASE || 'https://devsite-backend-production.up.railway.app'}/api/me`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include'
       });
       
       const data = await res.json();
@@ -67,7 +68,8 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
       if (!token) return;
       
       const res = await fetch(`${import.meta.env.VITE_API_BASE || 'https://devsite-backend-production.up.railway.app'}/api/notifications/unread-count`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include'
       });
       
       const data = await res.json();
@@ -194,9 +196,19 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
   }
 
   function handleLogout() {
-    document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict';
-    if (onLogout && typeof onLogout === 'function') onLogout();
-    else window.location.reload();
+    fetch(`${import.meta.env.VITE_API_BASE || 'https://devsite-backend-production.up.railway.app'}/api/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${getCookie('token')}` }
+    }).then(() => {
+      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict';
+      if (onLogout && typeof onLogout === 'function') onLogout();
+      else window.location.reload();
+    }).catch(() => {
+      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict';
+      if (onLogout && typeof onLogout === 'function') onLogout();
+      else window.location.reload();
+    });
   }
 
   const statusColors = {
