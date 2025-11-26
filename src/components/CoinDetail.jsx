@@ -143,8 +143,10 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
             return {
               ...prev,
               price: data.price,
-              pool_base: prev.pool_base,
-              pool_token: prev.pool_token
+              pool_base: data.pool_base,
+              pool_token: data.pool_token,
+              volume24h: data.volume24h,
+              change24h: data.change24h
             };
           });
         }
@@ -222,7 +224,7 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
       const res = await api.buyCoin(symbol, usd);
       if (res?.ok) {
         setMsg(t('boughtMsg', { amount: Number(res.bought.tokenAmount).toFixed(6), symbol }));
-        await load(); await loadHistory(); await loadUserData(); await loadTopHolders();
+        await loadUserData(); await loadTopHolders();
         onActionComplete?.({ keepView:true, animate:{ amount: Number(res.bought.usdSpent||usd), type:'down' }});
         setBuyUsd(''); setEstimatedTokens(null);
       } else setMsg(res?.error || t('buyError'));
@@ -239,7 +241,7 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
       const res = await api.sellCoin(symbol, amt);
       if (res?.ok) {
         setMsg(t('soldMsg', { amount: Number(res.sold.tokenAmount).toFixed(6), symbol }));
-        await load(); await loadHistory(); await loadUserData(); await loadTopHolders();
+        await loadUserData(); await loadTopHolders();
         onActionComplete?.({ keepView:true, animate:{ amount: Number(res.sold.usdGained||0), type:'up' }});
         setSellAmt(''); setEstimatedUsd(null);
       } else setMsg(res?.error || t('sellError'));
