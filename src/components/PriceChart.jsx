@@ -14,51 +14,56 @@ export default function PriceChart({ series = [] }) {
         if (!mounted || !containerRef.current) return;
         const chart = createChart(containerRef.current, {
           width: containerRef.current.clientWidth,
-          height: 320,
+          height: 280,
           layout: {
-            background: { type: 'solid', color: '#0a0e1a' },
-            textColor: '#9ca3af'
+            background: { type: 'solid', color: '#0d1117' },
+            textColor: '#8b92a7'
           },
           grid: {
-            vertLines: { color: 'rgba(99, 102, 241, 0.05)' },
-            horzLines: { color: 'rgba(99, 102, 241, 0.05)' }
+            vertLines: { color: 'rgba(42, 46, 57, 0.5)' },
+            horzLines: { color: 'rgba(42, 46, 57, 0.5)' }
           },
           crosshair: {
             mode: 1,
             vertLine: {
               width: 1,
-              color: 'rgba(99, 102, 241, 0.4)',
-              style: 0,
-              labelBackgroundColor: '#6366f1'
+              color: 'rgba(138, 146, 167, 0.3)',
+              style: 2,
+              labelBackgroundColor: '#2a2e39'
             },
             horzLine: {
               width: 1,
-              color: 'rgba(99, 102, 241, 0.4)',
-              style: 0,
-              labelBackgroundColor: '#6366f1'
+              color: 'rgba(138, 146, 167, 0.3)',
+              style: 2,
+              labelBackgroundColor: '#2a2e39'
             }
           },
           rightPriceScale: {
             visible: true,
-            borderColor: 'rgba(99, 102, 241, 0.1)',
-            textColor: '#9ca3af'
+            borderColor: '#2a2e39',
+            textColor: '#8b92a7',
+            scaleMargins: {
+              top: 0.1,
+              bottom: 0.1
+            }
           },
           timeScale: {
             timeVisible: true,
             secondsVisible: false,
-            borderColor: 'rgba(99, 102, 241, 0.1)',
-            textColor: '#9ca3af'
+            borderColor: '#2a2e39',
+            textColor: '#8b92a7'
           }
         });
 
         const candlestickSeries = chart.addCandlestickSeries({
-          upColor: '#10b981',
-          downColor: '#ef4444',
-          borderUpColor: '#10b981',
-          borderDownColor: '#ef4444',
-          wickUpColor: '#10b981',
-          wickDownColor: '#ef4444',
-          priceLineVisible: false
+          upColor: '#26a69a',
+          downColor: '#ef5350',
+          borderUpColor: '#26a69a',
+          borderDownColor: '#ef5350',
+          wickUpColor: '#26a69a',
+          wickDownColor: '#ef5350',
+          priceLineVisible: false,
+          borderVisible: true
         });
 
         const setData = (s) => {
@@ -108,8 +113,8 @@ export default function PriceChart({ series = [] }) {
 
   if (!useFallback) {
     return (
-      <div style={{ width: '100%', height: 320, position: 'relative', borderRadius: 12, overflow: 'hidden', background: 'linear-gradient(135deg, #0a0e1a 0%, #1a1f35 100%)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)' }}>
-        <div ref={containerRef} style={{ width: '100%', height: 320 }} />
+      <div style={{ width: '100%', height: 280, position: 'relative' }}>
+        <div ref={containerRef} style={{ width: '100%', height: 280 }} />
       </div>
     );
   }
@@ -117,16 +122,16 @@ export default function PriceChart({ series = [] }) {
   const points = series.filter(p => p.close != null);
   if (points.length === 0) {
     return (
-      <div style={{ padding: 24, borderRadius: 12, background: 'linear-gradient(135deg, #0a0e1a 0%, #1a1f35 100%)', color: '#9ca3af', textAlign: 'center', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)' }}>
-        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>No data available</div>
-        {libErrorMsg ? <div style={{fontSize:12, color:'#ef4444', marginTop:8}}>Error: {libErrorMsg}</div> : null}
+      <div style={{ padding: 18, borderRadius: 10, background: 'rgba(255,255,255,0.02)', color: '#cfe6ff' }}>
+        Sem dados para mostrar.
+        {libErrorMsg ? <div style={{fontSize:12, marginTop:6, color:'#fca5a5'}}>lightweight-charts erro: {libErrorMsg}</div> : null}
       </div>
     );
   }
 
   const w = containerRef.current ? containerRef.current.clientWidth : 760;
-  const h = 320;
-  const padding = { left: 50, right: 20, top: 20, bottom: 35 };
+  const h = 280;
+  const padding = { left: 60, right: 10, top: 12, bottom: 30 };
   const innerW = Math.max(10, w - padding.left - padding.right);
   const innerH = Math.max(10, h - padding.top - padding.bottom);
 
@@ -136,7 +141,8 @@ export default function PriceChart({ series = [] }) {
   const maxP = Math.max(...allPrices);
   const range = maxP - minP || maxP || 1;
 
-  const candleWidth = Math.max(1.5, Math.min(8, innerW / sorted.length - 1));
+  const candleSpacing = innerW / sorted.length;
+  const candleWidth = Math.max(2, Math.min(12, candleSpacing * 0.8));
 
   function priceToY(price) {
     const ratio = (Number(price) - minP) / range;
@@ -146,63 +152,45 @@ export default function PriceChart({ series = [] }) {
   function handleMouseMove(e) {
     const rect = e.currentTarget.getBoundingClientRect();
     const mx = e.clientX - rect.left;
-    const candleSpacing = innerW / sorted.length;
     const idx = Math.floor((mx - padding.left) / candleSpacing);
     if (idx >= 0 && idx < sorted.length) {
-      setHover({ idx, item: sorted[idx], x: padding.left + (idx / sorted.length) * innerW + (innerW / sorted.length) / 2 });
+      setHover({ idx, item: sorted[idx], x: padding.left + (idx + 0.5) * candleSpacing });
     }
   }
   
   function handleMouseLeave() { setHover(null); }
 
-  const ticks = 5;
+  const ticks = 4;
   const tickVals = Array.from({length: ticks+1}, (_,i) => minP + (i/ticks)*range).reverse();
 
   return (
-    <div ref={containerRef} style={{ width: '100%', height: h, position: 'relative', borderRadius: 12, overflow: 'hidden', background: 'linear-gradient(135deg, #0a0e1a 0%, #1a1f35 100%)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)' }}>
+    <div ref={containerRef} style={{ width: '100%', height: h, position: 'relative', borderRadius: 8, overflow: 'hidden', background: '#0d1117' }}>
       <svg width={w} height={h} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} style={{display:'block'}}>
-        <defs>
-          <linearGradient id="upGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style={{stopColor: '#10b981', stopOpacity: 1}} />
-            <stop offset="100%" style={{stopColor: '#059669', stopOpacity: 1}} />
-          </linearGradient>
-          <linearGradient id="downGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style={{stopColor: '#ef4444', stopOpacity: 1}} />
-            <stop offset="100%" style={{stopColor: '#dc2626', stopOpacity: 1}} />
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-
+        <rect width={w} height={h} fill="#0d1117"/>
+        
         <g>
           {tickVals.map((v,i) => {
             const ty = padding.top + (i / ticks) * innerH;
             return (
               <g key={i}>
-                <line x1={padding.left} x2={w - padding.right} y1={ty} y2={ty} stroke="rgba(99, 102, 241, 0.05)" strokeWidth={1} />
-                <text x={12} y={ty+4} fontSize={11} fill="#6b7280" fontWeight="500">${Number(v).toFixed(6)}</text>
+                <line x1={padding.left} x2={w - padding.right} y1={ty} y2={ty} stroke="rgba(42, 46, 57, 0.5)" strokeWidth={1} />
+                <text x={padding.left - 8} y={ty+4} fontSize={11} fill="#8b92a7" textAnchor="end">{Number(v).toFixed(6)}</text>
               </g>
             );
           })}
         </g>
 
         {sorted.map((candle, i) => {
-          const x = padding.left + (i / sorted.length) * innerW + (innerW / sorted.length) / 2;
+          const x = padding.left + (i + 0.5) * candleSpacing;
           const yOpen = priceToY(candle.open);
           const yClose = priceToY(candle.close);
           const yHigh = priceToY(candle.high);
           const yLow = priceToY(candle.low);
           
           const isUp = candle.close >= candle.open;
-          const gradient = isUp ? 'url(#upGradient)' : 'url(#downGradient)';
-          const wickColor = isUp ? '#10b981' : '#ef4444';
+          const color = isUp ? '#26a69a' : '#ef5350';
           const bodyTop = Math.min(yOpen, yClose);
-          const bodyHeight = Math.max(2, Math.abs(yClose - yOpen));
+          const bodyHeight = Math.max(1.5, Math.abs(yClose - yOpen));
 
           const isHovered = hover?.idx === i;
 
@@ -213,19 +201,19 @@ export default function PriceChart({ series = [] }) {
                 x2={x} 
                 y1={yHigh} 
                 y2={yLow} 
-                stroke={wickColor} 
-                strokeWidth={isHovered ? 2 : 1.5}
-                opacity={isHovered ? 1 : 0.9}
+                stroke={color} 
+                strokeWidth={1.5}
+                opacity={isHovered ? 1 : 0.95}
               />
               <rect 
                 x={x - candleWidth / 2} 
                 y={bodyTop} 
                 width={candleWidth} 
                 height={bodyHeight} 
-                fill={gradient}
+                fill={color}
+                stroke={color}
+                strokeWidth={0.5}
                 opacity={isHovered ? 1 : 0.95}
-                rx={1}
-                filter={isHovered ? 'url(#glow)' : undefined}
               />
             </g>
           );
@@ -238,18 +226,9 @@ export default function PriceChart({ series = [] }) {
               x2={hover.x}
               y1={padding.top} 
               y2={h - padding.bottom} 
-              stroke="rgba(99, 102, 241, 0.3)" 
+              stroke="rgba(138, 146, 167, 0.3)" 
               strokeWidth={1}
-              strokeDasharray="4,4"
-            />
-            <line 
-              x1={padding.left} 
-              x2={w - padding.right}
-              y1={priceToY(hover.item.close)} 
-              y2={priceToY(hover.item.close)} 
-              stroke="rgba(99, 102, 241, 0.3)" 
-              strokeWidth={1}
-              strokeDasharray="4,4"
+              strokeDasharray="3,3"
             />
           </>
         )}
@@ -258,49 +237,41 @@ export default function PriceChart({ series = [] }) {
       {hover && (
         <div style={{
           position:'absolute', 
-          left: Math.min(w - 230, Math.max(10, hover.x - 100)), 
-          top: 15,
-          background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(31, 41, 55, 0.98) 100%)', 
-          color:'#e5e7eb', 
-          padding:'14px 16px', 
-          borderRadius:10, 
-          fontSize:13, 
+          left: Math.min(w - 210, Math.max(10, hover.x + 10)), 
+          top: 10,
+          background: 'rgba(13, 17, 23, 0.95)', 
+          color:'#d1e6ff', 
+          padding:'10px 12px', 
+          borderRadius:6, 
+          fontSize:12, 
           pointerEvents:'none', 
-          boxShadow:'0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99, 102, 241, 0.2)',
-          backdropFilter: 'blur(10px)',
-          minWidth: 200
+          boxShadow:'0 4px 12px rgba(0,0,0,0.6)',
+          border: '1px solid rgba(138, 146, 167, 0.2)',
+          minWidth: 180
         }}>
-          <div style={{marginBottom:10, fontSize:11, color:'#9ca3af', fontWeight: 500, letterSpacing: '0.5px'}}>
-            {new Date(hover.item.time).toLocaleString('en-US', { 
-              month: 'short', 
-              day: 'numeric', 
-              hour: '2-digit', 
-              minute: '2-digit'
-            })}
+          <div style={{fontSize:10, color:'#8b92a7', marginBottom:8}}>
+            {new Date(hover.item.time).toLocaleString()}
           </div>
-          <div style={{display:'grid', gridTemplateColumns: '1fr 1fr', gap:'10px', fontSize:12}}>
-            <div>
-              <div style={{color:'#6b7280', fontSize:10, marginBottom:3, fontWeight: 600}}>OPEN</div>
-              <div style={{fontWeight:600, color:'#e5e7eb'}}>${hover.item.open}</div>
-            </div>
-            <div>
-              <div style={{color:'#6b7280', fontSize:10, marginBottom:3, fontWeight: 600}}>HIGH</div>
-              <div style={{fontWeight:600, color:'#10b981'}}>${hover.item.high}</div>
-            </div>
-            <div>
-              <div style={{color:'#6b7280', fontSize:10, marginBottom:3, fontWeight: 600}}>LOW</div>
-              <div style={{fontWeight:600, color:'#ef4444'}}>${hover.item.low}</div>
-            </div>
-            <div>
-              <div style={{color:'#6b7280', fontSize:10, marginBottom:3, fontWeight: 600}}>CLOSE</div>
-              <div style={{fontWeight:600, color:'#e5e7eb'}}>${hover.item.close}</div>
-            </div>
+          <div style={{display:'flex', justifyContent:'space-between', marginBottom:3}}>
+            <span style={{color:'#8b92a7'}}>O</span>
+            <span style={{fontWeight:600}}>{hover.item.open}</span>
           </div>
-          <div style={{marginTop:10, paddingTop:10, borderTop:'1px solid rgba(99, 102, 241, 0.2)', fontSize:11}}>
-            <span style={{color:'#9ca3af'}}>Change: </span>
+          <div style={{display:'flex', justifyContent:'space-between', marginBottom:3}}>
+            <span style={{color:'#8b92a7'}}>H</span>
+            <span style={{fontWeight:600, color:'#26a69a'}}>{hover.item.high}</span>
+          </div>
+          <div style={{display:'flex', justifyContent:'space-between', marginBottom:3}}>
+            <span style={{color:'#8b92a7'}}>L</span>
+            <span style={{fontWeight:600, color:'#ef5350'}}>{hover.item.low}</span>
+          </div>
+          <div style={{display:'flex', justifyContent:'space-between'}}>
+            <span style={{color:'#8b92a7'}}>C</span>
+            <span style={{fontWeight:600}}>{hover.item.close}</span>
+          </div>
+          <div style={{marginTop:8, paddingTop:8, borderTop:'1px solid rgba(138, 146, 167, 0.2)', fontSize:11}}>
             <span style={{
-              fontWeight:700, 
-              color: hover.item.close >= hover.item.open ? '#10b981' : '#ef4444'
+              fontWeight:600, 
+              color: hover.item.close >= hover.item.open ? '#26a69a' : '#ef5350'
             }}>
               {hover.item.close >= hover.item.open ? '+' : ''}
               {((hover.item.close - hover.item.open) / hover.item.open * 100).toFixed(2)}%
@@ -308,19 +279,6 @@ export default function PriceChart({ series = [] }) {
           </div>
         </div>
       )}
-
-      <div style={{ 
-        position:'absolute', 
-        left:15, 
-        bottom:12, 
-        color:'#6b7280', 
-        fontSize:11,
-        fontWeight: 500,
-        letterSpacing: '0.5px',
-        textTransform: 'uppercase'
-      }}>
-        {libErrorMsg ? 'Fallback Mode' : '1m Candlesticks'}
-      </div>
     </div>
   );
 }
