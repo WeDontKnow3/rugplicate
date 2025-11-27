@@ -136,8 +136,8 @@ export default function PriceChart({ series = [] }) {
   if (points.length === 0) {
     return (
       <div style={{ padding: 18, borderRadius: 10, background: 'rgba(255,255,255,0.02)', color: '#cfe6ff' }}>
-        Sem dados para mostrar.
-        {libErrorMsg ? <div style={{ fontSize: 12, marginTop: 6, color: '#fca5a5' }}>lightweight-charts erro: {libErrorMsg}</div> : null}
+        No data to display.
+        {libErrorMsg ? <div style={{ fontSize: 12, marginTop: 6, color: '#fca5a5' }}>lightweight-charts error: {libErrorMsg}</div> : null}
       </div>
     );
   }
@@ -170,9 +170,12 @@ export default function PriceChart({ series = [] }) {
         clearTimeout(hoverTimeoutRef.current);
         hoverTimeoutRef.current = null;
       }
-      const rect = e.currentTarget.getBoundingClientRect();
-      const scrollLeft = outerRef.current ? outerRef.current.scrollLeft : 0;
-      const mx = e.clientX - rect.left + scrollLeft;
+      const svg = e.currentTarget;
+      const pt = svg.createSVGPoint();
+      pt.x = e.clientX;
+      pt.y = e.clientY;
+      const cursorPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+      const mx = cursorPt.x;
       const relativeX = mx - padding.left;
       const idx = Math.floor(relativeX / totalCandleWidth);
       if (idx >= 0 && idx < sorted.length) {
@@ -195,9 +198,12 @@ export default function PriceChart({ series = [] }) {
       hoverTimeoutRef.current = null;
     }
     const touch = e.changedTouches[0];
-    const rect = e.currentTarget.getBoundingClientRect();
-    const scrollLeft = outerRef.current ? outerRef.current.scrollLeft : 0;
-    const mx = touch.clientX - rect.left + scrollLeft;
+    const svg = e.currentTarget;
+    const pt = svg.createSVGPoint();
+    pt.x = touch.clientX;
+    pt.y = touch.clientY;
+    const cursorPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const mx = cursorPt.x;
     const relativeX = mx - padding.left;
     const idx = Math.floor(relativeX / totalCandleWidth);
     if (idx >= 0 && idx < sorted.length) {
@@ -343,7 +349,7 @@ export default function PriceChart({ series = [] }) {
         )}
 
         <div style={{ position: 'absolute', left: 15, bottom: 10, color: '#9fb0d4', fontSize: 11 }}>
-          {libErrorMsg ? 'loaded' : 'candlesticks'}
+          {libErrorMsg ? 'fallback' : 'candlesticks'}
         </div>
       </div>
     </div>
