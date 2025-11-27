@@ -4,6 +4,7 @@ export default function PriceChart({ series = [] }) {
   const outerRef = useRef(null);
   const containerRef = useRef(null);
   const chartRef = useRef(null);
+  const hoverTimeoutRef = useRef(null);
   const [useFallback, setUseFallback] = useState(false);
   const [libErrorMsg, setLibErrorMsg] = useState(null);
   const [hover, setHover] = useState(null);
@@ -41,31 +42,11 @@ export default function PriceChart({ series = [] }) {
           },
           crosshair: {
             mode: 1,
-            vertLine: {
-              width: 1,
-              color: 'rgba(209, 230, 255, 0.3)',
-              style: 2,
-              labelBackgroundColor: '#1a3a5c'
-            },
-            horzLine: {
-              width: 1,
-              color: 'rgba(209, 230, 255, 0.3)',
-              style: 2,
-              labelBackgroundColor: '#1a3a5c'
-            }
+            vertLine: { width: 1, color: 'rgba(209, 230, 255, 0.3)', style: 2, labelBackgroundColor: '#1a3a5c' },
+            horzLine: { width: 1, color: 'rgba(209, 230, 255, 0.3)', style: 2, labelBackgroundColor: '#1a3a5c' }
           },
-          rightPriceScale: {
-            visible: true,
-            borderColor: 'rgba(255,255,255,0.04)',
-            textColor: '#d1e6ff',
-            scaleMargins: { top: 0.15, bottom: 0.15 }
-          },
-          timeScale: {
-            timeVisible: true,
-            secondsVisible: false,
-            borderColor: 'rgba(255,255,255,0.04)',
-            textColor: '#d1e6ff'
-          }
+          rightPriceScale: { visible: true, borderColor: 'rgba(255,255,255,0.04)', textColor: '#d1e6ff', scaleMargins: { top: 0.15, bottom: 0.15 } },
+          timeScale: { timeVisible: true, secondsVisible: false, borderColor: 'rgba(255,255,255,0.04)', textColor: '#d1e6ff' }
         });
 
         const candlestickSeries = chart.addCandlestickSeries({
@@ -95,13 +76,11 @@ export default function PriceChart({ series = [] }) {
         setData(series);
 
         const handleResize = () => {
-          if (!outerRef.current || !containerRef.current) return;
+          if (!outerRef.current) return;
           const outerWidth2 = outerRef.current.clientWidth || 760;
           const computed = computeTotalWidthFromSeries(outerWidth2, Math.max(1, series.length));
           setTotalWidth(computed);
-          try {
-            chart.applyOptions({ width: computed });
-          } catch (e) {}
+          try { chart.applyOptions({ width: computed }); } catch (e) {}
         };
 
         window.addEventListener('resize', handleResize);
@@ -122,6 +101,10 @@ export default function PriceChart({ series = [] }) {
         try { chartRef.current.chart.remove(); } catch (_) {}
         chartRef.current = null;
       }
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -130,9 +113,7 @@ export default function PriceChart({ series = [] }) {
       const outerWidth = outerRef.current ? outerRef.current.clientWidth : 760;
       const computedTotal = computeTotalWidthFromSeries(outerWidth, Math.max(1, series.length));
       setTotalWidth(computedTotal);
-      try {
-        chartRef.current.chart.applyOptions({ width: computedTotal });
-      } catch (e) {}
+      try { chartRef.current.chart.applyOptions({ width: computedTotal }); } catch (e) {}
       chartRef.current.setData(series);
       return;
     }
@@ -143,7 +124,7 @@ export default function PriceChart({ series = [] }) {
 
   if (!useFallback) {
     return (
-      <div ref={outerRef} style={{ width: '100%', overflowX: 'auto', touchAction: 'pan-x' }}>
+      <div ref={outerRef} style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <div style={{ width: totalWidth, height: 350, position: 'relative' }}>
           <div ref={containerRef} style={{ width: totalWidth, height: 350 }} />
         </div>
@@ -184,21 +165,51 @@ export default function PriceChart({ series = [] }) {
   }
 
   function handlePointerMove(e) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const scrollLeft = outerRef.current ? outerRef.current.scrollLeft : 0;
-    const mx = (e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX)) - rect.left + scrollLeft;
-    const relativeX = mx - padding.left;
-    const idx = Math.floor(relativeX / totalCandleWidth);
-    if (idx >= 0 && idx < sorted.length) {
-      const cx = padding.left + idx * totalCandleWidth + candleWidth / 2;
-      setHover({ idx, item: sorted[idx], x: cx });
-    } else {
-      setHover(null);
+    if (e.pointerType && (e.pointerType === 'mouse' || e.pointerType === 'pen')) {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
+      const rect = e.currentTarget.getBoundingClientRect();
+      const scrollLeft = outerRef.current ? outerRef.current.scrollLeft : 0;
+      const mx = e.clientX - rect.left + scrollLeft;
+      const relativeX = mx - padding.left;
+      const idx = Math.floor(relativeX / totalCandleWidth);
+      if (idx >= 0 && idx < sorted.length) {
+        const cx = padding.left + idx * totalCandleWidth + candleWidth / 2;
+        setHover({ idx, item: sorted[idx], x: cx });
+      } else {
+        setHover(null);
+      }
     }
   }
 
   function handlePointerLeave() {
     setHover(null);
+  }
+
+  function handleTouchEnd(e) {
+    if (!e.changedTouches || e.changedTouches.length === 0) return;
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    const touch = e.changedTouches[0];
+    const rect = e.currentTarget.getBoundingClientRect();
+    const scrollLeft = outerRef.current ? outerRef.current.scrollLeft : 0;
+    const mx = touch.clientX - rect.left + scrollLeft;
+    const relativeX = mx - padding.left;
+    const idx = Math.floor(relativeX / totalCandleWidth);
+    if (idx >= 0 && idx < sorted.length) {
+      const cx = padding.left + idx * totalCandleWidth + candleWidth / 2;
+      setHover({ idx, item: sorted[idx], x: cx });
+      hoverTimeoutRef.current = setTimeout(() => {
+        setHover(null);
+        hoverTimeoutRef.current = null;
+      }, 3000);
+    } else {
+      setHover(null);
+    }
   }
 
   const ticks = 6;
@@ -207,14 +218,15 @@ export default function PriceChart({ series = [] }) {
   const svgWidth = Math.max(w, Math.ceil(padding.left + sorted.length * totalCandleWidth + padding.right));
 
   return (
-    <div ref={outerRef} style={{ width: '100%', overflowX: 'auto', touchAction: 'pan-x' }}>
+    <div ref={outerRef} style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <div style={{ width: svgWidth, height: h, position: 'relative', borderRadius: 8, overflow: 'visible', background: 'linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.003))' }}>
         <svg
           width={svgWidth}
           height={h}
           onPointerMove={handlePointerMove}
           onPointerLeave={handlePointerLeave}
-          style={{ display: 'block', touchAction: 'none' }}
+          onTouchEnd={handleTouchEnd}
+          style={{ display: 'block', touchAction: 'manipulation' }}
         >
           <g>
             {tickVals.map((v, i) => {
