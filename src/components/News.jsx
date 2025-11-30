@@ -4,7 +4,6 @@ import * as api from '../api';
 export default function News() {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
 
   async function loadNews() {
@@ -24,25 +23,12 @@ export default function News() {
     }
   }
 
-  async function generateNews() {
-    setGenerating(true);
-    setError(null);
-    try {
-      const res = await api.generateNews();
-      if (res.error) {
-        setError(res.error);
-      } else {
-        await loadNews();
-      }
-    } catch (err) {
-      setError('Failed to generate news');
-    } finally {
-      setGenerating(false);
-    }
-  }
-
   useEffect(() => {
     loadNews();
+    const interval = setInterval(() => {
+      loadNews();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   function formatTimeAgo(timestamp) {
@@ -84,13 +70,10 @@ export default function News() {
           <h2 className="news-title">📰 Market News</h2>
           <p className="news-subtitle">AI-powered analysis of market trends and token movements</p>
         </div>
-        <button 
-          className="generate-news-btn"
-          onClick={generateNews}
-          disabled={generating}
-        >
-          {generating ? 'Generating...' : '✨ Generate News'}
-        </button>
+        <div className="news-live-indicator">
+          <span className="live-dot"></span>
+          <span className="live-text">Live Updates</span>
+        </div>
       </div>
 
       {error && (
@@ -100,7 +83,7 @@ export default function News() {
         </div>
       )}
 
-      {loading ? (
+      {loading && news.length === 0 ? (
         <div className="news-loading">
           <div className="spinner"></div>
           <p>Loading news...</p>
@@ -109,7 +92,7 @@ export default function News() {
         <div className="news-empty">
           <span className="news-empty-icon">📰</span>
           <h3>No news yet</h3>
-          <p>Click "Generate News" to create AI-powered market analysis</p>
+          <p>AI journalist is analyzing the market. New articles will appear automatically.</p>
         </div>
       ) : (
         <div className="news-grid">
@@ -189,27 +172,39 @@ export default function News() {
           margin: 0;
         }
 
-        .generate-news-btn {
-          padding: 0.75rem 1.5rem;
-          background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-          color: white;
-          border: none;
+        .news-live-indicator {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          background: rgba(16, 185, 129, 0.1);
           border-radius: 8px;
+        }
+
+        .live-dot {
+          width: 8px;
+          height: 8px;
+          background: #10b981;
+          border-radius: 50%;
+          animation: pulse 2s infinite;
+        }
+
+        .live-text {
+          font-size: 0.85rem;
           font-weight: 700;
-          font-size: 0.95rem;
-          cursor: pointer;
-          transition: all 0.2s;
-          white-space: nowrap;
+          color: #10b981;
+          text-transform: uppercase;
         }
 
-        .generate-news-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-        }
-
-        .generate-news-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.5;
+            transform: scale(1.1);
+          }
         }
 
         .news-error {
@@ -280,6 +275,18 @@ export default function News() {
           border-radius: 12px;
           padding: 1.5rem;
           transition: all 0.2s;
+          animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         .news-card:hover {
@@ -398,8 +405,8 @@ export default function News() {
             font-size: 1.5rem;
           }
 
-          .generate-news-btn {
-            width: 100%;
+          .news-live-indicator {
+            justify-content: center;
           }
 
           .news-grid {
