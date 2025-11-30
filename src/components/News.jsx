@@ -41,12 +41,12 @@ export default function News() {
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(article => 
-        article.headline.toLowerCase().includes(query) ||
-        article.content.toLowerCase().includes(query) ||
-        article.token_symbol.toLowerCase().includes(query) ||
+      result = result.filter(article =>
+        (article.headline || '').toLowerCase().includes(query) ||
+        (article.content || '').toLowerCase().includes(query) ||
+        (article.token_symbol || '').toLowerCase().includes(query) ||
         (article.key_points && article.key_points.some(p => p.toLowerCase().includes(query))) ||
-        (article.price_prediction && article.price_prediction.toLowerCase().includes(query))
+        (article.price_prediction || '').toLowerCase().includes(query)
       );
     }
 
@@ -98,7 +98,7 @@ export default function News() {
     const now = new Date();
     const date = new Date(timestamp);
     const seconds = Math.floor((now - date) / 1000);
-    
+
     if (seconds < 60) return `${seconds}s ago`;
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m ago`;
@@ -110,19 +110,27 @@ export default function News() {
 
   function getSentimentColor(sentiment) {
     switch (sentiment) {
-      case 'bullish': return '#10b981';
-      case 'bearish': return '#ef4444';
-      case 'neutral': return '#94a3b8';
-      default: return '#94a3b8';
+      case 'bullish':
+        return '#10b981';
+      case 'bearish':
+        return '#ef4444';
+      case 'neutral':
+        return '#94a3b8';
+      default:
+        return '#94a3b8';
     }
   }
 
   function getSentimentIcon(sentiment) {
     switch (sentiment) {
-      case 'bullish': return '📈';
-      case 'bearish': return '📉';
-      case 'neutral': return '➖';
-      default: return '📊';
+      case 'bullish':
+        return '📈';
+      case 'bearish':
+        return '📉';
+      case 'neutral':
+        return '➖';
+      default:
+        return '📊';
     }
   }
 
@@ -135,19 +143,37 @@ export default function News() {
             <p className="news-subtitle">AI-powered analysis of market trends and token movements</p>
           </div>
           <div className="news-live-indicator">
-            <span className="live-dot"></span>
+            <span className="live-dot" />
             <span className="live-text">Live Updates</span>
           </div>
         </div>
 
         <div className="news-controls">
-          <input
-            type="text"
-            placeholder="Search news..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="news-search-input"
-          />
+          <div className="search-wrapper">
+            <svg className="search-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path fill="currentColor" d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search news, tokens, key points..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="news-search-input"
+              aria-label="Search news"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="clear-btn"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
           <div className="news-count">
             {loading ? 'Loading...' : `${filteredNews.length} articles`}
           </div>
@@ -163,7 +189,7 @@ export default function News() {
 
       {loading && news.length === 0 ? (
         <div className="news-loading">
-          <div className="spinner"></div>
+          <div className="spinner" />
           <p>Loading news...</p>
         </div>
       ) : currentNews.length === 0 ? (
@@ -171,8 +197,8 @@ export default function News() {
           <span className="news-empty-icon">📰</span>
           <h3>{searchQuery ? 'No news found' : 'No news yet'}</h3>
           <p>
-            {searchQuery 
-              ? 'Try a different search term' 
+            {searchQuery
+              ? 'Try a different search term'
               : 'AI journalist is analyzing the market. New articles will appear automatically.'}
           </p>
         </div>
@@ -183,18 +209,11 @@ export default function News() {
               <div className="news-card-header">
                 <div className="news-meta">
                   <span className="news-time">{formatTimeAgo(article.created_at)}</span>
-                  <span 
-                    className="news-sentiment"
-                    style={{ color: getSentimentColor(article.sentiment) }}
-                  >
+                  <span className="news-sentiment" style={{ color: getSentimentColor(article.sentiment) }}>
                     {getSentimentIcon(article.sentiment)} {article.sentiment}
                   </span>
                 </div>
-                {article.token_symbol && (
-                  <div className="news-token-badge">
-                    {article.token_symbol}
-                  </div>
-                )}
+                {article.token_symbol && <div className="news-token-badge">{article.token_symbol}</div>}
               </div>
 
               <h3 className="news-headline">{article.headline}</h3>
@@ -229,10 +248,7 @@ export default function News() {
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
               className="pagination-btn"
-              style={{
-                opacity: currentPage === 1 ? 0.5 : 1,
-                cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
-              }}
+              style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
             >
               Previous
             </button>
@@ -240,9 +256,7 @@ export default function News() {
             {getPageNumbers().map((page, idx) => {
               if (page === '...') {
                 return (
-                  <span key={`ellipsis-${idx}`} className="pagination-ellipsis">
-                    ...
-                  </span>
+                  <span key={`ellipsis-${idx}`} className="pagination-ellipsis">...</span>
                 );
               }
 
@@ -261,10 +275,7 @@ export default function News() {
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
               className="pagination-btn"
-              style={{
-                opacity: currentPage === totalPages ? 0.5 : 1,
-                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
-              }}
+              style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
             >
               Next
             </button>
@@ -277,6 +288,14 @@ export default function News() {
       )}
 
       <style jsx>{`
+        :root {
+          --accent: #3b82f6;
+          --bg-card: rgba(148, 163, 184, 0.05);
+          --border: rgba(255,255,255,0.08);
+          --text-primary: #e2e8f0;
+          --text-secondary: #94a3b8;
+        }
+
         .news-container {
           max-width: 1200px;
           margin: 0 auto;
@@ -303,12 +322,12 @@ export default function News() {
           font-size: 2rem;
           font-weight: 800;
           margin: 0 0 0.5rem 0;
-          color: var(--text-primary, #e2e8f0);
+          color: var(--text-primary);
         }
 
         .news-subtitle {
           font-size: 0.95rem;
-          color: var(--text-secondary, #94a3b8);
+          color: var(--text-secondary);
           margin: 0;
         }
 
@@ -317,7 +336,7 @@ export default function News() {
           align-items: center;
           gap: 0.5rem;
           padding: 0.5rem 1rem;
-          background: rgba(16, 185, 129, 0.1);
+          background: rgba(16, 185, 129, 0.06);
           border-radius: 8px;
         }
 
@@ -343,23 +362,70 @@ export default function News() {
           flex-wrap: wrap;
         }
 
+        .search-wrapper {
+          position: relative;
+          flex: 1 1 300px;
+          max-width: 520px;
+          display: flex;
+          align-items: center;
+        }
+
+        .search-icon {
+          position: absolute;
+          left: 12px;
+          color: var(--text-secondary);
+          opacity: 0.85;
+          pointer-events: none;
+        }
+
         .news-search-input {
-          flex: 1 1 250px;
-          padding: 10px 14px;
-          fontSize: 14;
+          width: 100%;
+          padding: 10px 40px 10px 40px;
+          font-size: 14px;
           background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.08);
-          borderRadius: 8px;
-          color: #fff;
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          color: var(--text-primary);
+          outline: none;
+          transition: box-shadow 150ms ease, transform 120ms ease, border-color 150ms ease;
+          backdrop-filter: blur(6px);
         }
 
         .news-search-input::placeholder {
           color: #64748b;
         }
 
+        .news-search-input:focus {
+          box-shadow: 0 6px 18px rgba(59,130,246,0.12);
+          border-color: rgba(59,130,246,0.6);
+          transform: translateY(-1px);
+        }
+
+        .clear-btn {
+          position: absolute;
+          right: 8px;
+          background: rgba(255,255,255,0.04);
+          border: none;
+          height: 30px;
+          width: 30px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 13px;
+          color: var(--text-secondary);
+          transition: background 120ms ease, transform 120ms ease;
+        }
+
+        .clear-btn:hover {
+          background: rgba(255,255,255,0.08);
+          transform: scale(1.02);
+        }
+
         .news-count {
           font-size: 13px;
-          color: #94a3b8;
+          color: var(--text-secondary);
           white-space: nowrap;
         }
 
@@ -379,8 +445,8 @@ export default function News() {
           align-items: center;
           gap: 0.75rem;
           padding: 1rem;
-          background: rgba(239, 68, 68, 0.1);
-          border: 1px solid rgba(239, 68, 68, 0.3);
+          background: rgba(239, 68, 68, 0.06);
+          border: 1px solid rgba(239, 68, 68, 0.16);
           border-radius: 8px;
           color: #ef4444;
           margin-bottom: 1.5rem;
@@ -398,8 +464,8 @@ export default function News() {
         .spinner {
           width: 48px;
           height: 48px;
-          border: 4px solid rgba(226, 232, 240, 0.1);
-          border-top-color: #3b82f6;
+          border: 4px solid rgba(226, 232, 240, 0.08);
+          border-top-color: var(--accent);
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
@@ -422,11 +488,11 @@ export default function News() {
         .news-empty h3 {
           font-size: 1.5rem;
           margin: 0 0 0.5rem 0;
-          color: var(--text-primary, #e2e8f0);
+          color: var(--text-primary);
         }
 
         .news-empty p {
-          color: var(--text-secondary, #94a3b8);
+          color: var(--text-secondary);
           margin: 0;
         }
 
@@ -438,7 +504,7 @@ export default function News() {
         }
 
         .news-card {
-          background: rgba(148, 163, 184, 0.05);
+          background: var(--bg-card);
           border: 1px solid rgba(148, 163, 184, 0.1);
           border-radius: 12px;
           padding: 1.5rem;
@@ -447,20 +513,14 @@ export default function News() {
         }
 
         @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         .news-card:hover {
           transform: translateY(-2px);
           border-color: rgba(148, 163, 184, 0.2);
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
         }
 
         .news-card-header {
@@ -479,7 +539,7 @@ export default function News() {
 
         .news-time {
           font-size: 0.8rem;
-          color: var(--text-secondary, #94a3b8);
+          color: var(--text-secondary);
         }
 
         .news-sentiment {
@@ -490,8 +550,8 @@ export default function News() {
 
         .news-token-badge {
           padding: 0.35rem 0.75rem;
-          background: rgba(59, 130, 246, 0.15);
-          color: #3b82f6;
+          background: rgba(59, 130, 246, 0.12);
+          color: var(--accent);
           border-radius: 6px;
           font-size: 0.8rem;
           font-weight: 800;
@@ -501,19 +561,19 @@ export default function News() {
           font-size: 1.25rem;
           font-weight: 800;
           margin: 0 0 1rem 0;
-          color: var(--text-primary, #e2e8f0);
+          color: var(--text-primary);
           line-height: 1.3;
         }
 
         .news-content {
-          color: var(--text-secondary, #94a3b8);
+          color: var(--text-secondary);
           line-height: 1.6;
           margin: 0 0 1rem 0;
         }
 
         .news-key-points {
           background: rgba(59, 130, 246, 0.05);
-          border-left: 3px solid #3b82f6;
+          border-left: 3px solid var(--accent);
           padding: 0.75rem 1rem;
           border-radius: 4px;
           margin-bottom: 1rem;
@@ -523,7 +583,7 @@ export default function News() {
           font-weight: 700;
           font-size: 0.85rem;
           margin-bottom: 0.5rem;
-          color: #3b82f6;
+          color: var(--accent);
         }
 
         .news-key-points ul {
@@ -532,7 +592,7 @@ export default function News() {
         }
 
         .news-key-points li {
-          color: var(--text-secondary, #94a3b8);
+          color: var(--text-secondary);
           font-size: 0.9rem;
           line-height: 1.5;
           margin-bottom: 0.25rem;
@@ -543,7 +603,7 @@ export default function News() {
           justify-content: space-between;
           align-items: center;
           padding: 0.75rem;
-          background: rgba(139, 92, 246, 0.1);
+          background: rgba(139, 92, 246, 0.08);
           border-radius: 6px;
         }
 
@@ -556,7 +616,7 @@ export default function News() {
         .prediction-value {
           font-size: 0.9rem;
           font-weight: 700;
-          color: var(--text-primary, #e2e8f0);
+          color: var(--text-primary);
         }
 
         .news-pagination {
@@ -619,40 +679,13 @@ export default function News() {
         }
 
         @media (max-width: 768px) {
-          .news-container {
-            padding: 1rem;
-          }
-
-          .news-header-content {
-            flex-direction: column;
-            align-items: stretch;
-          }
-
-          .news-title {
-            font-size: 1.5rem;
-          }
-
-          .news-live-indicator {
-            justify-content: center;
-          }
-
-          .news-controls {
-            flex-direction: column;
-            align-items: stretch;
-          }
-
-          .news-search-input {
-            width: 100%;
-          }
-
-          .news-count {
-            text-align: center;
-          }
-
-          .news-grid {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-          }
+          .news-container { padding: 1rem; }
+          .news-header-content { flex-direction: column; align-items: stretch; }
+          .news-title { font-size: 1.5rem; }
+          .news-live-indicator { justify-content: center; }
+          .news-controls { flex-direction: column; align-items: stretch; }
+          .search-wrapper { max-width: 100%; }
+          .news-grid { grid-template-columns: 1fr; gap: 1rem; }
         }
       `}</style>
     </div>
