@@ -745,3 +745,28 @@ export async function minesCashout(gameId){
     return { error: e.message || "network_error" };
   }
 }
+
+export async function generateNews(){
+  try{
+    const res = await fetch(`${API_BASE}/api/news/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      credentials: "include"
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function listNews(){
+  try{
+    const res = await fetch(`${API_BASE}/api/news`, { 
+      headers: { ...authHeaders() },
+      credentials: "include"
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
