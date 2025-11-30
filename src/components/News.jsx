@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import * as api from '../api';
 
+const NEWS_PER_PAGE = 12;
+
 export default function News() {
   const [news, setNews] = useState([]);
+  const [filteredNews, setFilteredNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   async function loadNews() {
     setLoading(true);
@@ -30,6 +35,64 @@ export default function News() {
     }, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    let result = [...news];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(article => 
+        article.headline.toLowerCase().includes(query) ||
+        article.content.toLowerCase().includes(query) ||
+        article.token_symbol.toLowerCase().includes(query) ||
+        (article.key_points && article.key_points.some(p => p.toLowerCase().includes(query))) ||
+        (article.price_prediction && article.price_prediction.toLowerCase().includes(query))
+      );
+    }
+
+    setFilteredNews(result);
+    setCurrentPage(1);
+  }, [news, searchQuery]);
+
+  const totalPages = Math.ceil(filteredNews.length / NEWS_PER_PAGE);
+  const startIndex = (currentPage - 1) * NEWS_PER_PAGE;
+  const endIndex = startIndex + NEWS_PER_PAGE;
+  const currentNews = filteredNews.slice(startIndex, endIndex);
+
+  function getPageNumbers() {
+    const pages = [];
+    const maxVisible = 7;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  }
 
   function formatTimeAgo(timestamp) {
     const now = new Date();
@@ -66,13 +129,28 @@ export default function News() {
   return (
     <div className="news-container">
       <div className="news-header">
-        <div className="news-header-left">
-          <h2 className="news-title">📰 Market News</h2>
-          <p className="news-subtitle">AI-powered analysis of market trends and token movements</p>
+        <div className="news-header-content">
+          <div className="news-header-left">
+            <h2 className="news-title">📰 Market News</h2>
+            <p className="news-subtitle">AI-powered analysis of market trends and token movements</p>
+          </div>
+          <div className="news-live-indicator">
+            <span className="live-dot"></span>
+            <span className="live-text">Live Updates</span>
+          </div>
         </div>
-        <div className="news-live-indicator">
-          <span className="live-dot"></span>
-          <span className="live-text">Live Updates</span>
+
+        <div className="news-controls">
+          <input
+            type="text"
+            placeholder="Search news..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="news-search-input"
+          />
+          <div className="news-count">
+            {loading ? 'Loading...' : `${filteredNews.length} articles`}
+          </div>
         </div>
       </div>
 
@@ -88,15 +166,19 @@ export default function News() {
           <div className="spinner"></div>
           <p>Loading news...</p>
         </div>
-      ) : news.length === 0 ? (
+      ) : currentNews.length === 0 ? (
         <div className="news-empty">
           <span className="news-empty-icon">📰</span>
-          <h3>No news yet</h3>
-          <p>AI journalist is analyzing the market. New articles will appear automatically.</p>
+          <h3>{searchQuery ? 'No news found' : 'No news yet'}</h3>
+          <p>
+            {searchQuery 
+              ? 'Try a different search term' 
+              : 'AI journalist is analyzing the market. New articles will appear automatically.'}
+          </p>
         </div>
       ) : (
         <div className="news-grid">
-          {news.map((article) => (
+          {currentNews.map((article) => (
             <article key={article.id} className="news-card">
               <div className="news-card-header">
                 <div className="news-meta">
@@ -140,6 +222,60 @@ export default function News() {
         </div>
       )}
 
+      {totalPages > 1 && (
+        <>
+          <div className="news-pagination">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="pagination-btn"
+              style={{
+                opacity: currentPage === 1 ? 0.5 : 1,
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Previous
+            </button>
+
+            {getPageNumbers().map((page, idx) => {
+              if (page === '...') {
+                return (
+                  <span key={`ellipsis-${idx}`} className="pagination-ellipsis">
+                    ...
+                  </span>
+                );
+              }
+
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`pagination-number ${currentPage === page ? 'active' : ''}`}
+                >
+                  {page}
+                </button>
+              );
+            })}
+
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="pagination-btn"
+              style={{
+                opacity: currentPage === totalPages ? 0.5 : 1,
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Next
+            </button>
+          </div>
+
+          <div className="news-pagination-info">
+            Page {currentPage} of {totalPages} • Showing {startIndex + 1}-{Math.min(endIndex, filteredNews.length)} of {filteredNews.length} articles
+          </div>
+        </>
+      )}
+
       <style jsx>{`
         .news-container {
           max-width: 1200px;
@@ -148,10 +284,14 @@ export default function News() {
         }
 
         .news-header {
+          margin-bottom: 2rem;
+        }
+
+        .news-header-content {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 2rem;
+          margin-bottom: 1.5rem;
           gap: 1rem;
         }
 
@@ -194,6 +334,33 @@ export default function News() {
           font-weight: 700;
           color: #10b981;
           text-transform: uppercase;
+        }
+
+        .news-controls {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .news-search-input {
+          flex: 1 1 250px;
+          padding: 10px 14px;
+          fontSize: 14;
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.08);
+          borderRadius: 8px;
+          color: #fff;
+        }
+
+        .news-search-input::placeholder {
+          color: #64748b;
+        }
+
+        .news-count {
+          font-size: 13px;
+          color: #94a3b8;
+          white-space: nowrap;
         }
 
         @keyframes pulse {
@@ -267,6 +434,7 @@ export default function News() {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
           gap: 1.5rem;
+          margin-bottom: 2rem;
         }
 
         .news-card {
@@ -391,12 +559,71 @@ export default function News() {
           color: var(--text-primary, #e2e8f0);
         }
 
+        .news-pagination {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 8px;
+          margin-top: 24px;
+          flex-wrap: wrap;
+        }
+
+        .pagination-btn {
+          padding: 8px 12px;
+          background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 6px;
+          color: #fff;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+          background: rgba(255,255,255,0.12);
+        }
+
+        .pagination-number {
+          padding: 8px 12px;
+          min-width: 40px;
+          background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 6px;
+          color: #fff;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+
+        .pagination-number:hover {
+          background: rgba(255,255,255,0.12);
+        }
+
+        .pagination-number.active {
+          background: var(--accent);
+          font-weight: 700;
+        }
+
+        .pagination-ellipsis {
+          color: #64748b;
+          padding: 0 4px;
+        }
+
+        .news-pagination-info {
+          text-align: center;
+          margin-top: 12px;
+          font-size: 13px;
+          color: #64748b;
+        }
+
         @media (max-width: 768px) {
           .news-container {
             padding: 1rem;
           }
 
-          .news-header {
+          .news-header-content {
             flex-direction: column;
             align-items: stretch;
           }
@@ -407,6 +634,19 @@ export default function News() {
 
           .news-live-indicator {
             justify-content: center;
+          }
+
+          .news-controls {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .news-search-input {
+            width: 100%;
+          }
+
+          .news-count {
+            text-align: center;
           }
 
           .news-grid {
