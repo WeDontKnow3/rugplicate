@@ -2,6 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as api from '../api';
 import PriceChart from './PriceChart';
 import { useTranslation } from 'react-i18next';
+import DOMPurify from 'dompurify';
+
+function sanitizeText(text) {
+  return DOMPurify.sanitize(text, {
+    ALLOWED_TAGS: [],
+    ALLOWED_ATTR: [],
+    KEEP_CONTENT: true
+  });
+}
 
 export default function CoinDetail({ symbol, onBack, onActionComplete }) {
   const { t } = useTranslation();
@@ -52,7 +61,12 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
     setLoadingComments(true);
     try {
       const r = await api.getCoinComments(symbol);
-      setComments(r?.comments || []);
+      const sanitizedComments = (r?.comments || []).map(c => ({
+        ...c,
+        text: sanitizeText(c.text),
+        username: sanitizeText(c.username)
+      }));
+      setComments(sanitizedComments);
     } catch { setComments([]); }
     finally { setLoadingComments(false); }
   }
@@ -250,10 +264,17 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
   }
 
   async function postComment() {
-    if (!commentText.trim()) return;
+    const sanitized = commentText.trim();
+    if (!sanitized) return;
+    
+    if (sanitized.length > 500) {
+      setMsg('Comment too long (max 500 characters)');
+      return;
+    }
+    
     setPostingComment(true);
     try {
-      const res = await api.postCoinComment(symbol, commentText);
+      const res = await api.postCoinComment(symbol, sanitized);
       if (res?.ok) {
         setCommentText('');
         await loadComments();
