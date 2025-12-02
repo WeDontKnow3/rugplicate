@@ -274,7 +274,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
           <NavItem active={view === 'news'} label="Treemap" onClick={() => navigate('news')} icon="treemap" />
           <NavItem active={view === 'create'} label="Create coin" onClick={() => navigate('create')} icon="create" />
           <NavItem active={view === 'notifications'} label="Notifications" onClick={() => navigate('notifications')} icon="notification" badge={unreadCount > 0 ? unreadCount : null} />
-          <NavItem active={view === 'settings'} label="About" onClick={() => navigate('settings')} icon="about" />
+          <NavItem active={view === 'settings'} label="Settings" onClick={() => navigate('settings')} icon="about" />
           {me && me.is_admin && (
             <NavItem active={view === 'admin'} label="Admin" onClick={() => navigate('admin')} icon="admin" />
           )}
