@@ -757,3 +757,29 @@ export async function listNews(){
     return { error: e.message || "network_error" };
   }
 }
+
+export async function getUserSettings(){
+  try{
+    const res = await fetch(`${API_BASE}/api/user/settings`, { 
+      headers: { ...authHeaders() },
+      credentials: "include"
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function updateUserSettings(settings){
+  try{
+    const res = await fetch(`${API_BASE}/api/user/settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      credentials: "include",
+      body: JSON.stringify(settings)
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
