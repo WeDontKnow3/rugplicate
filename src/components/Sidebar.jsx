@@ -12,6 +12,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
   const [loading, setLoading] = useState(false);
   const [balanceAnim, setBalanceAnim] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [dailyStatus, setDailyStatus] = useState(null);
   const prevBalanceRef = useRef(null);
   const pollRef = useRef(null);
 
@@ -81,15 +82,36 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
     }
   }
 
+  async function fetchDailyStatus() {
+    try {
+      const token = getCookie('token');
+      if (!token) return;
+      
+      const res = await fetch(`${import.meta.env.VITE_API_BASE || 'https://devsite-backend-production.up.railway.app'}/api/daily/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include'
+      });
+      
+      const data = await res.json();
+      if (data) {
+        setDailyStatus(data);
+      }
+    } catch (err) {
+      console.error('fetch daily status err', err);
+    }
+  }
+
   useEffect(() => {
     fetchMe();
     fetchUnreadCount();
+    fetchDailyStatus();
     function handleVisibility() {
       if (pollRef.current) clearInterval(pollRef.current);
       if (!document.hidden) {
         pollRef.current = setInterval(() => {
           fetchMe();
           fetchUnreadCount();
+          fetchDailyStatus();
         }, 5000);
       }
     }
@@ -103,7 +125,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
   }, []);
 
   const WS_URL = import.meta.env.VITE_WS_URL || "wss://devsite-backend-production.up.railway.app";
-  const MAX_TRADES = 15;
+  const MAX_TRADES = 10;
 
   function pushTrade(t) {
     setTrades(prev => {
@@ -211,19 +233,16 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
     });
   }
 
-  const statusColors = {
-    connected: '#10b981',
-    connecting: '#f59e0b',
-    disconnected: '#ef4444',
-    error: '#ef4444'
-  };
+  function formatTimeRemaining(seconds) {
+    if (!seconds || seconds <= 0) return 'Ready!';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  }
 
-  const statusLabels = {
-    connected: 'Live',
-    connecting: 'Connecting',
-    disconnected: 'Offline',
-    error: 'Error'
-  };
+  const totalValue = me ? Number(me.usd_balance || 0) + (me.tokens || []).reduce((sum, t) => sum + (Number(t.amount || 0) * 0.01), 0) : 0;
+  const coinsValue = me ? (me.tokens || []).reduce((sum, t) => sum + (Number(t.amount || 0) * 0.01), 0) : 0;
 
   useEffect(() => {
     if (typeof setOpen === 'function') setOpen(false);
@@ -237,437 +256,206 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
         style={{ display: window.innerWidth < 900 && open ? 'block' : 'none' }}
       />
       <aside className={`sidebar ${open ? 'open' : 'closed'}`} aria-expanded={open}>
-        <div className="sidebar-top">
+        <div className="sidebar-header">
           <div className="logo">ZT</div>
-          <div className="sidebar-title">
-            <div className="header-title">RUGPLICATE</div>
-            <div className="header-sub">by zt01</div>
+          <div className="sidebar-brand">
+            <div className="brand-title">RUGPLICATE</div>
+            <div className="brand-subtitle">by zt01</div>
           </div>
         </div>
 
         <nav className="sidebar-nav">
+          <NavItem active={view === 'dashboard'} label="Home" onClick={() => navigate('dashboard')} icon="home" />
           <NavItem active={view === 'market'} label="Market" onClick={() => navigate('market')} icon="market" />
-          <NavItem active={view === 'portfolio'} label="Portfolio" onClick={() => navigate('portfolio')} icon="portfolio" />
-          <NavItem active={view === 'dashboard'} label="Dashboard" onClick={() => navigate('dashboard')} icon="dashboard" />
-          <NavItem active={view === 'create'} label="Create Coin" onClick={() => navigate('create')} icon="create" />
-          <NavItem active={view === 'news'} label="News" onClick={() => navigate('news')} icon="news" />
           <NavItem active={view === 'hopium'} label="Hopium" onClick={() => navigate('hopium')} icon="hopium" />
-          <NavItem active={view === 'leaderboard'} label="Leaderboard" onClick={() => navigate('leaderboard')} icon="leaderboard" />
-          <NavItem active={view === 'promos'} label="Promocodes" onClick={() => navigate('promos')} icon="promo" />
           <NavItem active={view === 'gambling'} label="Gambling" onClick={() => navigate('gambling')} icon="gambling" />
+          <NavItem active={view === 'leaderboard'} label="Leaderboard" onClick={() => navigate('leaderboard')} icon="leaderboard" />
+          <NavItem active={view === 'portfolio'} label="Portfolio" onClick={() => navigate('portfolio')} icon="portfolio" />
+          <NavItem active={view === 'news'} label="Treemap" onClick={() => navigate('news')} icon="treemap" />
+          <NavItem active={view === 'create'} label="Create coin" onClick={() => navigate('create')} icon="create" />
           <NavItem active={view === 'notifications'} label="Notifications" onClick={() => navigate('notifications')} icon="notification" badge={unreadCount > 0 ? unreadCount : null} />
-          <NavItem active={view === 'apikeys'} label="API Keys" onClick={() => navigate('apikeys')} icon="apikey" />
-          <NavItem active={view === 'settings'} label="Settings" onClick={() => navigate('settings')} icon="settings" />
+          <NavItem active={view === 'settings'} label="About" onClick={() => navigate('settings')} icon="about" />
           {me && me.is_admin && (
             <NavItem active={view === 'admin'} label="Admin" onClick={() => navigate('admin')} icon="admin" />
           )}
         </nav>
 
-        <div className="live-trades-card">
-          <div className="live-trades-header">
-            <div className="live-trades-title">Live Trades ($1k+)</div>
-            <div className="live-trades-status">
-              <span className={`status-dot ${wsStatus}`}></span>
-              {statusLabels[wsStatus]}
+        {dailyStatus && (
+          <div className="daily-timer">
+            <div className="timer-icon">⏰</div>
+            <div className="timer-text">
+              Next in {formatTimeRemaining(dailyStatus.seconds_until_next)}
             </div>
           </div>
+        )}
 
-          <div className="live-trades-list">
+        <div className="live-trades-section">
+          <div className="section-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" fill="currentColor"/>
+            </svg>
+            <span>Live Trades</span>
+            <a href="#" className="view-all">View All</a>
+          </div>
+
+          <div className="trades-list">
             {trades.length === 0 ? (
-              <div className="live-trades-empty">
-                {wsStatus === 'connected' ? 'Waiting for trades...' : 'Connecting to live feed...'}
-              </div>
+              <div className="trades-empty">No big trades yet...</div>
             ) : (
-              trades.map((t, i) => (
-                <div key={`${t.created_at}-${i}`} className={`trade-item ${t.side}`}>
-                  <div className="trade-coin">{t.coin}</div>
-                  <div className="trade-side">{t.side}</div>
-                  <div className="trade-amount">
-                    ${Number(t.usdAmount).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              trades.slice(0, 6).map((t, i) => (
+                <div key={`${t.created_at}-${i}`} className="trade-item">
+                  <div className="trade-header">
+                    <span className="trade-coin">{t.coin}</span>
+                    <span className={`trade-badge ${t.side}`}>{t.side}</span>
                   </div>
+                  <div className="trade-amount">${Number(t.usdAmount).toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
                 </div>
               ))
             )}
           </div>
         </div>
 
-        <div className="sidebar-bottom">
-          {me ? (
-            <>
-              <div className="sidebar-user">
-                <div className="user-avatar">{me.username ? me.username[0].toUpperCase() : '?'}</div>
-                <div className="user-info">
-                  <div className="user-name">{me.username}</div>
-                  <div className="user-balance">
-                    <span className={balanceAnim ? `balance-anim anim-${balanceAnim}` : ''}>
-                      ${me ? fmtUSD(me.usd_balance || 0) : '0.00'}
-                    </span>
-                  </div>
+        {me && (
+          <div className="portfolio-summary">
+            <div className="summary-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" fill="currentColor"/>
+              </svg>
+              <span>Portfolio</span>
+            </div>
+
+            <div className="summary-items">
+              <div className="summary-item">
+                <div className="item-label">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/>
+                  </svg>
+                  Total Value
                 </div>
+                <div className="item-value">${totalValue.toFixed(2)}</div>
               </div>
 
-              <button className="logout-btn" onClick={handleLogout} aria-label="Logout">⎋ Logout</button>
-            </>
-          ) : (
-            <div className="sidebar-login-msg">
-              <p>{loading ? 'Loading...' : 'Login to trade and create coins'}</p>
+              <div className="summary-row">
+                <div className="summary-item-small">
+                  <div className="item-label-small">Cash:</div>
+                  <div className="item-value-small">${me ? fmtUSD(me.usd_balance || 0) : '0.00'}</div>
+                </div>
+                <div className="summary-item-small">
+                  <div className="item-label-small">Coins:</div>
+                  <div className="item-value-small">${coinsValue.toFixed(2)}</div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {me && (
+          <div className="sidebar-footer">
+            <button className="user-profile" onClick={() => navigate('settings')}>
+              <div className="user-avatar">{me.username ? me.username[0].toUpperCase() : '?'}</div>
+              <div className="user-info">
+                <div className="user-name">{me.username}</div>
+              </div>
+              <svg className="profile-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 9l-7 7-7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        )}
       </aside>
-
-      <style>{`
-        .sidebar {
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          overflow: hidden;
-        }
-
-        .sidebar-top {
-          flex-shrink: 0;
-          padding: 1rem;
-        }
-
-        .sidebar-nav {
-          flex-shrink: 0;
-          overflow-y: auto;
-          max-height: 40vh;
-          padding: 0.5rem 0;
-        }
-
-        .sidebar-nav::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .sidebar-nav::-webkit-scrollbar-track {
-          background: rgba(148, 163, 184, 0.1);
-        }
-
-        .sidebar-nav::-webkit-scrollbar-thumb {
-          background: rgba(148, 163, 184, 0.3);
-          border-radius: 3px;
-        }
-
-        .live-trades-card {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          margin: 10px;
-          padding: 12px;
-          background: rgba(148, 163, 184, 0.05);
-          border-radius: 8px;
-          min-height: 200px;
-          max-height: 400px;
-          overflow: hidden;
-        }
-
-        @media (max-height: 800px) {
-          .live-trades-card {
-            max-height: 250px;
-            min-height: 150px;
-          }
-        }
-
-        @media (max-height: 600px) {
-          .live-trades-card {
-            max-height: 180px;
-            min-height: 120px;
-          }
-        }
-
-        .live-trades-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-          flex-shrink: 0;
-        }
-
-        .live-trades-title {
-          font-weight: 800;
-          font-size: 13px;
-        }
-
-        .live-trades-status {
-          font-size: 11px;
-          color: #94a3b8;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .status-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          display: inline-block;
-        }
-
-        .status-dot.connected {
-          background-color: #10b981;
-          animation: pulse 2s infinite;
-        }
-
-        .status-dot.connecting {
-          background-color: #f59e0b;
-        }
-
-        .status-dot.disconnected,
-        .status-dot.error {
-          background-color: #ef4444;
-        }
-
-        .live-trades-list {
-          flex: 1;
-          overflow-y: auto;
-          overflow-x: hidden;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          padding-right: 4px;
-          min-height: 0;
-        }
-
-        .live-trades-list::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .live-trades-list::-webkit-scrollbar-track {
-          background: rgba(148, 163, 184, 0.1);
-          border-radius: 3px;
-        }
-
-        .live-trades-list::-webkit-scrollbar-thumb {
-          background: rgba(148, 163, 184, 0.3);
-          border-radius: 3px;
-        }
-
-        .live-trades-list::-webkit-scrollbar-thumb:hover {
-          background: rgba(148, 163, 184, 0.5);
-        }
-
-        .live-trades-empty {
-          text-align: center;
-          padding: 20px 0;
-          font-size: 13px;
-          color: #94a3b8;
-        }
-
-        .trade-item {
-          display: flex;
-          justify-content: space-between;
-          gap: 8px;
-          padding: 6px 8px;
-          border-radius: 6px;
-          border-left: 3px solid;
-          animation: slideIn 0.3s ease-out;
-          flex-shrink: 0;
-        }
-
-        .trade-item.buy {
-          background-color: rgba(16, 185, 129, 0.08);
-          border-left-color: #10b981;
-        }
-
-        .trade-item.sell {
-          background-color: rgba(239, 68, 68, 0.08);
-          border-left-color: #ef4444;
-        }
-
-        .trade-coin {
-          min-width: 60px;
-          font-weight: 700;
-          font-size: 13px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .trade-side {
-          flex: 1;
-          font-size: 12px;
-          color: #94a3b8;
-          text-transform: uppercase;
-          font-weight: 600;
-        }
-
-        .trade-amount {
-          min-width: 70px;
-          text-align: right;
-          font-weight: 700;
-          font-size: 13px;
-        }
-
-        .trade-item.buy .trade-amount {
-          color: #10b981;
-        }
-
-        .trade-item.sell .trade-amount {
-          color: #ef4444;
-        }
-
-        .sidebar-bottom {
-          flex-shrink: 0;
-          padding: 1rem;
-        }
-
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.5;
-          }
-        }
-
-        @media (max-width: 900px) {
-          .sidebar-nav {
-            max-height: none;
-          }
-          
-          .live-trades-card {
-            max-height: 300px;
-          }
-        }
-      `}</style>
     </>
   );
 }
 
 function NavItem({ active, label, onClick, icon, badge }) {
   return (
-    <button className={`nav-item ${active ? 'active' : ''}`} onClick={onClick} style={{ position: 'relative' }}>
-      <span className="nav-icon" aria-hidden>
+    <button className={`nav-item ${active ? 'active' : ''}`} onClick={onClick}>
+      <span className="nav-icon">
         <Icon name={icon} />
       </span>
       <span className="nav-label">{label}</span>
-      {badge && (
-        <span style={{
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          backgroundColor: '#ef4444',
-          color: 'white',
-          borderRadius: '50%',
-          width: 18,
-          height: 18,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 10,
-          fontWeight: 700
-        }}>
-          {badge > 9 ? '9+' : badge}
-        </span>
-      )}
+      {badge && <span className="nav-badge">{badge > 9 ? '9+' : badge}</span>}
     </button>
   );
 }
 
 function Icon({ name }) {
   switch (name) {
+    case 'home':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        </svg>
+      );
     case 'market':
       return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <path d="M12 4L20 20H4L12 4Z" fill="currentColor"/>
-        </svg>
-      );
-    case 'portfolio':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <rect x="3" y="3" width="8" height="8" fill="currentColor"/>
-          <rect x="13" y="3" width="8" height="8" fill="currentColor" opacity="0.85"/>
-          <rect x="3" y="13" width="8" height="8" fill="currentColor" opacity="0.7"/>
-          <rect x="13" y="13" width="8" height="8" fill="currentColor" opacity="0.55"/>
-        </svg>
-      );
-    case 'dashboard':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <rect x="3" y="4" width="18" height="3" fill="currentColor"/>
-          <rect x="3" y="10.5" width="18" height="3" fill="currentColor"/>
-          <rect x="3" y="17" width="18" height="3" fill="currentColor"/>
-        </svg>
-      );
-    case 'create':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <path d="M11 11V4h2v7h7v2h-7v7h-2v-7H4v-2h7z" fill="currentColor"/>
-        </svg>
-      );
-    case 'news':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/>
-          <line x1="6" y1="8" x2="12" y2="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="6" y1="12" x2="18" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="6" y1="16" x2="18" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor"/>
+          <rect x="3" y="14" width="7" height="7" rx="1" fill="currentColor"/>
+          <rect x="14" y="3" width="7" height="7" rx="1" fill="currentColor"/>
+          <rect x="14" y="14" width="7" height="7" rx="1" fill="currentColor"/>
         </svg>
       );
     case 'hopium':
       return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" fill="none"/>
-          <path d="M12 7v5l3.5 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          <circle cx="12" cy="12" r="2" fill="currentColor"/>
-        </svg>
-      );
-    case 'leaderboard':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <path d="M12 2l2.6 6.6L21 9.3l-5 3.9L17 21l-5-3.3L7 21l1-7.8-5-3.9 6.4-.7L12 2z" fill="currentColor"/>
-        </svg>
-      );
-    case 'promo':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <path d="M21 8.5L16 3.5L10.5 9L9 7.5L3 13.5L4.5 15L9 10.5L10.5 12L16.5 6L19 8.5V8.5C19.5523 8.5 20 8.94772 20 9.5V14.5C20 15.0523 19.5523 15.5 19 15.5H9C8.44772 15.5 8 15.0523 8 14.5V13L6 15V16.5C6 17.6046 6.89543 18.5 8 18.5H19C20.1046 18.5 21 17.6046 21 16.5V8.5Z" fill="currentColor"/>
-          <circle cx="16" cy="12" r="1.5" fill="currentColor"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 12h4l3-9 4 18 3-9h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
         </svg>
       );
     case 'gambling':
       return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.4" fill="none"/>
-          <circle cx="8.5" cy="11.5" r="1.2" fill="currentColor"/>
-          <rect x="11" y="9" width="6" height="4" rx="0.8" fill="currentColor"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/>
+          <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+          <circle cx="16" cy="16" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+        </svg>
+      );
+    case 'leaderboard':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 16v6m-8-6v6m4-10v10M4 12h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+          <path d="M12 2L4 12h16L12 2z" fill="currentColor"/>
+        </svg>
+      );
+    case 'portfolio':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="6" width="18" height="15" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/>
+          <path d="M3 10h18M8 3v4m8-4v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'treemap':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 10H3M12 3v18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+          <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/>
+        </svg>
+      );
+    case 'create':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+          <path d="M12 8v8m-4-4h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
         </svg>
       );
     case 'notification':
       return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <path d="M12 2C11.172 2 10.5 2.672 10.5 3.5V4.19C8.13 4.86 6.5 7.03 6.5 9.5V14.5L4.5 16.5V17.5H19.5V16.5L17.5 14.5V9.5C17.5 7.03 15.87 4.86 13.5 4.19V3.5C13.5 2.672 12.828 2 12 2ZM10 19.5C10 20.605 10.895 21.5 12 21.5C13.105 21.5 14 20.605 14 19.5H10Z" fill="currentColor"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 8A6 6 0 106 8c0 7-3 9-3 9h18s-3-2-3-9zM13.73 21a2 2 0 01-3.46 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
         </svg>
       );
-    case 'apikey':
+    case 'about':
       return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <path d="M7 14C5.9 14 5 13.1 5 12C5 10.9 5.9 10 7 10C8.1 10 9 10.9 9 12C9 13.1 8.1 14 7 14ZM12.6 10C11.8 7.7 9.6 6 7 6C3.7 6 1 8.7 1 12C1 15.3 3.7 18 7 18C9.6 18 11.8 16.3 12.6 14H16V18H20V14H23V10H12.6Z" fill="currentColor"/>
-        </svg>
-      );
-    case 'settings':
-      return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <path d="M12 8.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5z" fill="currentColor"/>
-          <path d="M19.4 13.3a7.9 7.9 0 0 0 .1-2.6l2.1-1.6-2-3.5-2.5.7a8 8 0 0 0-2.2-1.3L14.4 2h-4.8l-.5 2.9a8 8 0 0 0-2.2 1.3l-2.5-.7-2 3.5L4.5 10.7a7.9 7.9 0 0 0 .1 2.6L2.6 14.9l2 3.5 2.5-.7c.7.5 1.5.9 2.2 1.3L9.6 22h4.8l.5-2.9c.8-.4 1.5-.8 2.2-1.3l2.5.7 2-3.5-2.1-1.6z" fill="currentColor" opacity="0.6"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+          <path d="M12 16v-4m0-4h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
         </svg>
       );
     case 'admin':
       return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-          <path d="M12 2l2 4 4 .5-3 2 1 4-4-2-4 2 1-4-3-2 4-.5L12 2z" fill="currentColor"/>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2l9 4.5v5c0 5.25-3.375 10.125-9 11.5-5.625-1.375-9-6.25-9-11.5v-5L12 2z" fill="currentColor"/>
         </svg>
       );
     default:
