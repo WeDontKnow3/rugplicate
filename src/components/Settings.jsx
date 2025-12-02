@@ -14,6 +14,13 @@ export default function Settings() {
     winRate: 0,
     accountAge: 0
   });
+  const [confirmSettings, setConfirmSettings] = useState({
+    enabled: false,
+    usd_threshold: 1000,
+    percentage_threshold: 10,
+    token_count_threshold: 100000
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -25,7 +32,12 @@ export default function Settings() {
   async function loadUserData() {
     setLoading(true);
     try {
-      const [userRes, txRes] = await Promise.all([api.getMe(), api.getTransactions()]);
+      const [userRes, txRes, settingsRes] = await Promise.all([
+        api.getMe(), 
+        api.getTransactions(),
+        api.getUserSettings()
+      ]);
+      
       if (userRes && userRes.user) {
         setUser(userRes.user);
         const txs = (txRes && txRes.transactions) ? txRes.transactions : [];
@@ -49,6 +61,15 @@ export default function Settings() {
           totalVolume: totalVolume,
           winRate: winRate,
           accountAge: accountAge
+        });
+      }
+
+      if (settingsRes && settingsRes.settings) {
+        setConfirmSettings({
+          enabled: settingsRes.settings.double_confirm_enabled || false,
+          usd_threshold: settingsRes.settings.double_confirm_usd_threshold || 1000,
+          percentage_threshold: settingsRes.settings.double_confirm_percentage_threshold || 10,
+          token_count_threshold: settingsRes.settings.double_confirm_token_count_threshold || 100000
         });
       }
     } catch (err) {
@@ -79,6 +100,31 @@ export default function Settings() {
 
   function changeLanguage(l) {
     i18n.changeLanguage(l);
+  }
+
+  async function saveConfirmSettings() {
+    setSavingSettings(true);
+    setMsg('');
+    try {
+      const res = await api.updateUserSettings({
+        double_confirm_enabled: confirmSettings.enabled,
+        double_confirm_usd_threshold: Number(confirmSettings.usd_threshold),
+        double_confirm_percentage_threshold: Number(confirmSettings.percentage_threshold),
+        double_confirm_token_count_threshold: Number(confirmSettings.token_count_threshold)
+      });
+      
+      if (res && res.ok) {
+        setMsg('Confirmation settings saved successfully');
+        setTimeout(() => setMsg(''), 3000);
+      } else {
+        setMsg(res?.error || 'Failed to save settings');
+      }
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      setMsg('Error saving settings');
+    } finally {
+      setSavingSettings(false);
+    }
   }
 
   if (loading) {
@@ -185,6 +231,138 @@ export default function Settings() {
               <div className="stat-value">#{Math.floor(Math.random() * 100) + 1}</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3 style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span>⚠️</span> Trade Confirmation Settings
+        </h3>
+        
+        <p className="muted" style={{ marginBottom: 20 }}>
+          Configure when you want to see a double confirmation dialog before selling coins
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <label style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 12, 
+            padding: 16, 
+            background: 'var(--glass)', 
+            borderRadius: 8,
+            cursor: 'pointer'
+          }}>
+            <input
+              type="checkbox"
+              checked={confirmSettings.enabled}
+              onChange={e => setConfirmSettings({ ...confirmSettings, enabled: e.target.checked })}
+              style={{ width: 20, height: 20, cursor: 'pointer' }}
+            />
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Enable Double Confirmation</div>
+              <div className="muted" style={{ fontSize: 13 }}>
+                Show confirmation dialog when selling large amounts
+              </div>
+            </div>
+          </label>
+
+          {confirmSettings.enabled && (
+            <div style={{ 
+              padding: 20, 
+              background: 'var(--glass)', 
+              border: '1px solid var(--border)', 
+              borderRadius: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16
+            }}>
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  fontWeight: 600, 
+                  marginBottom: 8,
+                  fontSize: 14
+                }}>
+                  USD Value Threshold
+                </label>
+                <input
+                  type="number"
+                  value={confirmSettings.usd_threshold}
+                  onChange={e => setConfirmSettings({ 
+                    ...confirmSettings, 
+                    usd_threshold: Math.max(0, Number(e.target.value)) 
+                  })}
+                  min="0"
+                  step="100"
+                  style={{ width: '100%' }}
+                />
+                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                  Show confirmation when selling coins worth more than ${confirmSettings.usd_threshold}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  fontWeight: 600, 
+                  marginBottom: 8,
+                  fontSize: 14
+                }}>
+                  Percentage of Holdings Threshold (%)
+                </label>
+                <input
+                  type="number"
+                  value={confirmSettings.percentage_threshold}
+                  onChange={e => setConfirmSettings({ 
+                    ...confirmSettings, 
+                    percentage_threshold: Math.max(0, Math.min(100, Number(e.target.value)))
+                  })}
+                  min="0"
+                  max="100"
+                  step="1"
+                  style={{ width: '100%' }}
+                />
+                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                  Show confirmation when selling more than {confirmSettings.percentage_threshold}% of your holdings
+                </div>
+              </div>
+
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  fontWeight: 600, 
+                  marginBottom: 8,
+                  fontSize: 14
+                }}>
+                  Token Count Threshold
+                </label>
+                <input
+                  type="number"
+                  value={confirmSettings.token_count_threshold}
+                  onChange={e => setConfirmSettings({ 
+                    ...confirmSettings, 
+                    token_count_threshold: Math.max(0, Number(e.target.value))
+                  })}
+                  min="0"
+                  step="1000"
+                  style={{ width: '100%' }}
+                />
+                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                  Show confirmation when selling more than {confirmSettings.token_count_threshold.toLocaleString()} tokens
+                </div>
+              </div>
+
+              <button 
+                className="btn" 
+                onClick={saveConfirmSettings}
+                disabled={savingSettings}
+                style={{ marginTop: 8 }}
+              >
+                {savingSettings ? 'Saving...' : 'Save Confirmation Settings'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
