@@ -265,7 +265,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
         </div>
 
         <nav className="sidebar-nav">
-          <NavItem active={view === 'dashboard'} label="Home" onClick={() => navigate('dashboard')} icon="home" />
+          <NavItem active={view === 'dashboard'} label="Dashboard" onClick={() => navigate('dashboard')} icon="home" />
           <NavItem active={view === 'market'} label="Market" onClick={() => navigate('market')} icon="market" />
           <NavItem active={view === 'hopium'} label="Hopium" onClick={() => navigate('hopium')} icon="hopium" />
           <NavItem active={view === 'gambling'} label="Gambling" onClick={() => navigate('gambling')} icon="gambling" />
@@ -381,7 +381,7 @@ function NavItem({ active, label, onClick, icon, badge }) {
 
 function Icon({ name }) {
   switch (name) {
-    case 'home':
+    case 'dashboard':
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
