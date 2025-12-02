@@ -32,6 +32,14 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [postingComment, setPostingComment] = useState(false);
+  const [confirmSettings, setConfirmSettings] = useState({
+    enabled: false,
+    usd_threshold: 1000,
+    percentage_threshold: 10,
+    token_count_threshold: 100000
+  });
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingSale, setPendingSale] = useState(null);
 
   const prevPriceRef = useRef(null);
   const priceElRef = useRef(null);
@@ -46,6 +54,25 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
         setUserTokenAmount(userToken ? Number(userToken.amount || 0) : 0);
       }
     } catch (e) { console.error(e); }
+
+    try {
+      const settingsRes = await api.getUserSettings();
+      if (settingsRes && settingsRes.settings) {
+        setConfirmSettings({
+          enabled: settingsRes.settings.double_confirm_enabled || false,
+          usd_threshold: settingsRes.settings.double_confirm_usd_threshold || 1000,
+          percentage_threshold: settingsRes.settings.double_confirm_percentage_threshold || 10,
+          token_count_threshold: settingsRes.settings.double_confirm_token_count_threshold || 100000
+        });
+      }
+    } catch (_) {
+      setConfirmSettings({
+        enabled: false,
+        usd_threshold: 1000,
+        percentage_threshold: 10,
+        token_count_threshold: 100000
+      });
+    }
   }
 
   async function loadTopHolders() {
@@ -246,10 +273,35 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
     finally { setLoading(false); }
   }
 
+  function shouldShowConfirmation(amount) {
+    if (!confirmSettings.enabled || !coin) return false;
+
+    const sellAmount = Number(amount);
+    const usdValue = estimatedUsd || 0;
+    const percentage = userTokenAmount > 0 ? (sellAmount / userTokenAmount) * 100 : 0;
+
+    return (
+      usdValue >= confirmSettings.usd_threshold ||
+      percentage >= confirmSettings.percentage_threshold ||
+      sellAmount >= confirmSettings.token_count_threshold
+    );
+  }
+
   async function sell() {
     setMsg('');
     const amt = Number(sellAmt);
     if (!amt || amt<=0) { setMsg(t('invalidUsd')); return; }
+
+    if (shouldShowConfirmation(amt)) {
+      setPendingSale({ amount: amt });
+      setShowConfirmModal(true);
+      return;
+    }
+
+    await executeSell(amt);
+  }
+
+  async function executeSell(amt) {
     setLoading(true);
     try {
       const res = await api.sellCoin(symbol, amt);
@@ -261,6 +313,19 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
       } else setMsg(res?.error || t('sellError'));
     } catch { setMsg(t('sellError')); }
     finally { setLoading(false); }
+  }
+
+  function handleConfirmSale() {
+    if (pendingSale) {
+      setShowConfirmModal(false);
+      executeSell(pendingSale.amount);
+      setPendingSale(null);
+    }
+  }
+
+  function handleCancelSale() {
+    setShowConfirmModal(false);
+    setPendingSale(null);
   }
 
   async function postComment() {
@@ -388,6 +453,65 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
               {loading?t('processingShort'):t('sellBtn')}
             </button>
           </div>
+
+          {showConfirmModal && pendingSale && (
+            <div style={{
+              position:'fixed', 
+              top:0, 
+              left:0, 
+              right:0, 
+              bottom:0, 
+              background:'rgba(0,0,0,0.8)', 
+              display:'flex', 
+              alignItems:'center', 
+              justifyContent:'center',
+              zIndex:1001
+            }}>
+              <div className="card" style={{maxWidth:500, width:'90%', border:'2px solid #ef4444'}}>
+                <h3 style={{marginTop:0, color:'#ef4444', display:'flex', alignItems:'center', gap:8}}>
+                  <span>⚠️</span> Confirm Large Sale
+                </h3>
+                
+                <div style={{
+                  padding:16,
+                  background:'rgba(239,68,68,0.06)',
+                  borderRadius:8,
+                  marginBottom:16
+                }}>
+                  <div style={{fontSize:15, marginBottom:12, fontWeight:600}}>
+                    You are about to sell:
+                  </div>
+                  <div style={{fontSize:18, fontWeight:800, marginBottom:8}}>
+                    {Number(pendingSale.amount).toLocaleString()} {symbol}
+                  </div>
+                  <div style={{fontSize:14, color:'#94a3b8'}}>
+                    Estimated value: ${(estimatedUsd || 0).toFixed(2)}
+                  </div>
+                </div>
+
+                <p style={{fontSize:14, color:'#94a3b8', lineHeight:1.6, marginBottom:20}}>
+                  This sale exceeds your configured thresholds. Please confirm that you want to proceed with this transaction.
+                </p>
+
+                <div style={{display:'flex', gap:8}}>
+                  <button 
+                    className="btn" 
+                    onClick={handleConfirmSale}
+                    style={{flex:1, background:'#ef4444', border:'1px solid #ef4444'}}
+                  >
+                    Confirm Sale
+                  </button>
+                  <button 
+                    className="btn ghost" 
+                    onClick={handleCancelSale}
+                    style={{flex:1}}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="card">
             <h3>{t('topHolders')}</h3>
