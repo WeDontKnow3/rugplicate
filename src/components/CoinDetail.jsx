@@ -14,7 +14,6 @@ function sanitizeText(text) {
 
 export default function CoinDetail({ symbol, onBack, onActionComplete }) {
   const { t } = useTranslation();
-
   const [coin, setCoin] = useState(null);
   const [buyUsd, setBuyUsd] = useState('');
   const [sellAmt, setSellAmt] = useState('');
@@ -40,7 +39,6 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
   });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingSale, setPendingSale] = useState(null);
-
   const prevPriceRef = useRef(null);
   const priceElRef = useRef(null);
   const wsRef = useRef(null);
@@ -122,30 +120,24 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
     } catch { setHistory([]); }
   }
 
-  useEffect(() => { 
-    load(); 
-    loadHistory(); 
-    loadUserData(); 
+  useEffect(() => {
+    load();
+    loadHistory();
+    loadUserData();
     loadTopHolders();
     loadComments();
   }, [symbol]);
 
   useEffect(() => {
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = window.location.host;
     const wsUrl = "wss://devsite-backend-production.up.railway.app";
-    
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
-
     ws.onopen = () => {
       console.log('WebSocket connected for real-time updates');
     };
-
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        
         if (data.type === 'trade' && data.coin === symbol) {
           const newCandle = {
             time: data.created_at,
@@ -154,13 +146,11 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
             low: Number(data.price),
             close: Number(data.price)
           };
-
           setHistory(prev => {
             const updated = [...prev];
             if (updated.length > 0) {
               const lastCandle = updated[updated.length - 1];
               const timeDiff = new Date(newCandle.time).getTime() - new Date(lastCandle.time).getTime();
-              
               if (timeDiff < 5 * 60 * 1000) {
                 lastCandle.close = newCandle.close;
                 lastCandle.high = Math.max(lastCandle.high, newCandle.close);
@@ -171,14 +161,11 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
             } else {
               updated.push(newCandle);
             }
-            
             if (updated.length > 150) {
               return updated.slice(-150);
             }
-            
             return updated;
           });
-
           setCoin(prev => {
             if (!prev) return prev;
             return {
@@ -195,15 +182,12 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
         console.error('WebSocket message error:', err);
       }
     };
-
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
-
     ws.onclose = () => {
       console.log('WebSocket disconnected');
     };
-
     return () => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.close();
@@ -228,46 +212,48 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
   }, [coin]);
 
   useEffect(() => {
-    if (!coin || !buyUsd || Number(buyUsd)<=0) { setEstimatedTokens(null); return; }
+    if (!coin || !buyUsd || Number(buyUsd) <= 0) { setEstimatedTokens(null); return; }
     const usdIn = Number(buyUsd);
     const poolBase = Number(coin.pool_base || 0);
     const poolToken = Number(coin.pool_token || 0);
-    if (poolBase<=0 || poolToken<=0) { setEstimatedTokens(null); return; }
+    if (poolBase <= 0 || poolToken <= 0) { setEstimatedTokens(null); return; }
     const FEE = 0.003;
-    const effectiveUsd = usdIn*(1-FEE);
-    const k = poolBase*poolToken;
-    const newPoolBase = poolBase+effectiveUsd;
-    const newPoolToken = k/newPoolBase;
-    const tokensReceived = poolToken-newPoolToken;
-    setEstimatedTokens(tokensReceived>0?tokensReceived:0);
+    const effectiveUsd = usdIn * (1 - FEE);
+    const k = poolBase * poolToken;
+    const newPoolBase = poolBase + effectiveUsd;
+    const newPoolToken = k / newPoolBase;
+    const tokensReceived = poolToken - newPoolToken;
+    setEstimatedTokens(tokensReceived > 0 ? tokensReceived : 0);
   }, [buyUsd, coin]);
 
   useEffect(() => {
-    if (!coin || !sellAmt || Number(sellAmt)<=0) { setEstimatedUsd(null); return; }
+    if (!coin || !sellAmt || Number(sellAmt) <= 0) { setEstimatedUsd(null); return; }
     const tAmount = Number(sellAmt);
     const poolBase = Number(coin.pool_base || 0);
     const poolToken = Number(coin.pool_token || 0);
-    if (poolBase<=0 || poolToken<=0) { setEstimatedUsd(null); return; }
+    if (poolBase <= 0 || poolToken <= 0) { setEstimatedUsd(null); return; }
     const FEE = 0.003;
-    const k = poolBase*poolToken;
-    const newPoolToken = poolToken+tAmount;
-    const newPoolBase = k/newPoolToken;
-    const usdOut = (poolBase-newPoolBase)*(1-FEE);
-    setEstimatedUsd(usdOut>0?usdOut:0);
+    const k = poolBase * poolToken;
+    const newPoolToken = poolToken + tAmount;
+    const newPoolBase = k / newPoolToken;
+    const usdOut = (poolBase - newPoolBase) * (1 - FEE);
+    setEstimatedUsd(usdOut > 0 ? usdOut : 0);
   }, [sellAmt, coin]);
 
   async function buy() {
     setMsg('');
     const usd = Number(buyUsd);
-    if (!usd || usd<=0) { setMsg(t('invalidUsd')); return; }
+    if (!usd || usd <= 0) { setMsg(t('invalidUsd')); return; }
     setLoading(true);
     try {
       const res = await api.buyCoin(symbol, usd);
       if (res?.ok) {
         setMsg(t('boughtMsg', { amount: Number(res.bought.tokenAmount).toFixed(6), symbol }));
-        await loadUserData(); await loadTopHolders();
-        onActionComplete?.({ keepView:true, animate:{ amount: Number(res.bought.usdSpent||usd), type:'down' }});
-        setBuyUsd(''); setEstimatedTokens(null);
+        await loadUserData();
+        await loadTopHolders();
+        onActionComplete?.({ keepView: true, animate: { amount: Number(res.bought.usdSpent || usd), type: 'down' } });
+        setBuyUsd('');
+        setEstimatedTokens(null);
       } else setMsg(res?.error || t('buyError'));
     } catch { setMsg(t('buyError')); }
     finally { setLoading(false); }
@@ -275,11 +261,9 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
 
   function shouldShowConfirmation(amount) {
     if (!confirmSettings.enabled || !coin) return false;
-
     const sellAmount = Number(amount);
     const usdValue = estimatedUsd || 0;
     const percentage = userTokenAmount > 0 ? (sellAmount / userTokenAmount) * 100 : 0;
-
     return (
       usdValue >= confirmSettings.usd_threshold ||
       percentage >= confirmSettings.percentage_threshold ||
@@ -290,14 +274,12 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
   async function sell() {
     setMsg('');
     const amt = Number(sellAmt);
-    if (!amt || amt<=0) { setMsg(t('invalidUsd')); return; }
-
+    if (!amt || amt <= 0) { setMsg(t('invalidUsd')); return; }
     if (shouldShowConfirmation(amt)) {
       setPendingSale({ amount: amt });
       setShowConfirmModal(true);
       return;
     }
-
     await executeSell(amt);
   }
 
@@ -307,9 +289,11 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
       const res = await api.sellCoin(symbol, amt);
       if (res?.ok) {
         setMsg(t('soldMsg', { amount: Number(res.sold.tokenAmount).toFixed(6), symbol }));
-        await loadUserData(); await loadTopHolders();
-        onActionComplete?.({ keepView:true, animate:{ amount: Number(res.sold.usdGained||0), type:'up' }});
-        setSellAmt(''); setEstimatedUsd(null);
+        await loadUserData();
+        await loadTopHolders();
+        onActionComplete?.({ keepView: true, animate: { amount: Number(res.sold.usdGained || 0), type: 'up' } });
+        setSellAmt('');
+        setEstimatedUsd(null);
       } else setMsg(res?.error || t('sellError'));
     } catch { setMsg(t('sellError')); }
     finally { setLoading(false); }
@@ -331,12 +315,10 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
   async function postComment() {
     const sanitized = commentText.trim();
     if (!sanitized) return;
-    
     if (sanitized.length > 500) {
       setMsg('Comment too long (max 500 characters)');
       return;
     }
-    
     setPostingComment(true);
     try {
       const res = await api.postCoinComment(symbol, sanitized);
@@ -365,8 +347,8 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
     }
   }
 
-  function handleMaxBuy() { if(userBalance>0) setBuyUsd(userBalance.toString()); }
-  function handleMaxSell() { if(userTokenAmount>0) setSellAmt(userTokenAmount.toString()); }
+  function handleMaxBuy() { if (userBalance > 0) setBuyUsd(userBalance.toString()); }
+  function handleMaxSell() { if (userTokenAmount > 0) setSellAmt(userTokenAmount.toString()); }
 
   function formatTimeAgo(isoString) {
     const now = new Date();
@@ -375,7 +357,6 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-    
     if (diffMins < 1) return 'just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
@@ -456,14 +437,14 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
 
           {showConfirmModal && pendingSale && (
             <div style={{
-              position:'fixed', 
-              top:0, 
-              left:0, 
-              right:0, 
-              bottom:0, 
-              background:'rgba(0,0,0,0.8)', 
-              display:'flex', 
-              alignItems:'center', 
+              position:'fixed',
+              top:0,
+              left:0,
+              right:0,
+              bottom:0,
+              background:'rgba(0,0,0,0.8)',
+              display:'flex',
+              alignItems:'center',
               justifyContent:'center',
               zIndex:1001
             }}>
@@ -471,7 +452,7 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
                 <h3 style={{marginTop:0, color:'#ef4444', display:'flex', alignItems:'center', gap:8}}>
                   <span>⚠️</span> Confirm Large Sale
                 </h3>
-                
+
                 <div style={{
                   padding:16,
                   background:'rgba(239,68,68,0.06)',
@@ -494,15 +475,15 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
                 </p>
 
                 <div style={{display:'flex', gap:8}}>
-                  <button 
-                    className="btn" 
+                  <button
+                    className="btn"
                     onClick={handleConfirmSale}
                     style={{flex:1, background:'#ef4444', border:'1px solid #ef4444'}}
                   >
                     Confirm Sale
                   </button>
-                  <button 
-                    className="btn ghost" 
+                  <button
+                    className="btn ghost"
                     onClick={handleCancelSale}
                     style={{flex:1}}
                   >
@@ -565,8 +546,8 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
               />
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8}}>
                 <span style={{fontSize:'.85em',color:'#666'}}>{commentText.length}/500</span>
-                <button 
-                  className="btn" 
+                <button
+                  className="btn"
                   onClick={postComment}
                   disabled={postingComment || !commentText.trim()}
                   style={{padding:'8px 16px'}}
@@ -577,7 +558,7 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
             </div>
 
             {loadingComments && <div style={{color:'#aaa',fontSize:'.9em',textAlign:'center',padding:'20px'}}>Loading comments...</div>}
-            
+
             {!loadingComments && comments.length === 0 && (
               <div style={{color:'#666',fontSize:'.9em',textAlign:'center',padding:'20px'}}>
                 No comments yet. Be the first to share your thoughts!
@@ -587,7 +568,7 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
             {!loadingComments && comments.length > 0 && (
               <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
                 {comments.map(comment => (
-                  <div 
+                  <div
                     key={comment.id}
                     style={{
                       background:'#1a1a1a',
