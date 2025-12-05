@@ -12,6 +12,7 @@ import Sidebar from './components/Sidebar';
 import Settings from './components/Settings';
 import Notifications from './components/Notifications';
 import Gambling from './components/Gambling';
+import Treemap from './components/Treemap';
 import Promocodes from './components/Promocodes';
 import ApiKeyPanel from './components/ApiKeyPanel';
 import Hopium from './components/Hopium';
@@ -243,6 +244,7 @@ export default function App() {
               {view === 'apikeys' && 'API Keys'}
               {view === 'hopium' && 'Hopium'}
               {view === 'news' && 'News'}
+              {view === 'treemap' && 'Market Treemap'}
             </h1>
           </div>
 
@@ -349,6 +351,10 @@ export default function App() {
 
           {user && view === 'news' && (
             <News />
+          )}
+
+          {user && view === 'treemap' && (
+            <Treemap />
           )}
 
           {user && view === 'notifications' && (
