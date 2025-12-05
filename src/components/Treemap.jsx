@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as api from '../api';
 
-export default function Treemap() {
+export default function Treemap({ onSelectCoin }) {
   const [coins, setCoins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
@@ -12,9 +12,7 @@ export default function Treemap() {
   useEffect(() => {
     loadCoins();
     connectWebSocket();
-
     const interval = setInterval(loadCoins, 30000);
-    
     return () => {
       clearInterval(interval);
       if (wsRef.current) {
@@ -31,7 +29,6 @@ export default function Treemap() {
         setDimensions({ width, height });
       }
     };
-
     updateDimensions();
     window.addEventListener('resize', updateDimensions);
     return () => window.removeEventListener('resize', updateDimensions);
@@ -40,11 +37,9 @@ export default function Treemap() {
   function connectWebSocket() {
     const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
     const ws = new WebSocket(wsUrl);
-
     ws.onopen = () => {
       console.log('WebSocket connected');
     };
-
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -56,16 +51,13 @@ export default function Treemap() {
         console.error('WebSocket message error:', err);
       }
     };
-
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
-
     ws.onclose = () => {
       console.log('WebSocket disconnected, reconnecting...');
       setTimeout(connectWebSocket, 5000);
     };
-
     wsRef.current = ws;
   }
 
@@ -88,7 +80,6 @@ export default function Treemap() {
             volume24h: Math.max(0.01, c.volume24h)
           }))
           .sort((a, b) => b.marketCap - a.marketCap);
-        
         setCoins(filtered);
       }
     } catch (err) {
@@ -100,30 +91,24 @@ export default function Treemap() {
 
   function squarify(data, x, y, width, height) {
     if (data.length === 0) return [];
-    
     const totalValue = data.reduce((sum, item) => sum + item.volume24h, 0);
     if (totalValue === 0) return [];
-
     const normalized = data.map(item => ({
       ...item,
       normalizedValue: (item.volume24h / totalValue) * width * height
     }));
-
     const result = [];
     let remaining = [...normalized];
     let currentX = x;
     let currentY = y;
     let remainingWidth = width;
     let remainingHeight = height;
-
     while (remaining.length > 0) {
       const slice = getOptimalSlice(remaining, remainingWidth, remainingHeight);
       const sliceValue = slice.reduce((sum, item) => sum + item.normalizedValue, 0);
-      
       if (remainingWidth >= remainingHeight) {
         const sliceWidth = (sliceValue / (remainingWidth * remainingHeight)) * remainingWidth;
         let sliceY = currentY;
-        
         slice.forEach(item => {
           const itemHeight = (item.normalizedValue / sliceValue) * remainingHeight;
           result.push({
@@ -135,13 +120,11 @@ export default function Treemap() {
           });
           sliceY += itemHeight;
         });
-        
         currentX += sliceWidth;
         remainingWidth -= sliceWidth;
       } else {
         const sliceHeight = (sliceValue / (remainingWidth * remainingHeight)) * remainingHeight;
         let sliceX = currentX;
-        
         slice.forEach(item => {
           const itemWidth = (item.normalizedValue / sliceValue) * remainingWidth;
           result.push({
@@ -153,28 +136,22 @@ export default function Treemap() {
           });
           sliceX += itemWidth;
         });
-        
         currentY += sliceHeight;
         remainingHeight -= sliceHeight;
       }
-      
       remaining = remaining.slice(slice.length);
     }
-
     return result;
   }
 
   function getOptimalSlice(data, width, height) {
     if (data.length === 0) return [];
     if (data.length === 1) return [data[0]];
-
     let bestSlice = [data[0]];
     let bestRatio = getWorstAspectRatio([data[0]], width, height);
-
     for (let i = 2; i <= Math.min(data.length, 20); i++) {
       const slice = data.slice(0, i);
       const ratio = getWorstAspectRatio(slice, width, height);
-      
       if (ratio < bestRatio) {
         bestRatio = ratio;
         bestSlice = slice;
@@ -182,22 +159,19 @@ export default function Treemap() {
         break;
       }
     }
-
     return bestSlice;
   }
 
   function getWorstAspectRatio(slice, width, height) {
     const total = slice.reduce((sum, item) => sum + item.normalizedValue, 0);
-    const sliceLength = width >= height ? 
-      (total / (width * height)) * width : 
+    const sliceLength = width >= height ?
+      (total / (width * height)) * width :
       (total / (width * height)) * height;
-
     return Math.max(
       ...slice.map(item => {
         const itemLength = width >= height ?
           (item.normalizedValue / total) * height :
           (item.normalizedValue / total) * width;
-        
         const ratio = sliceLength / itemLength;
         return Math.max(ratio, 1 / ratio);
       })
@@ -222,12 +196,14 @@ export default function Treemap() {
   }
 
   function handleCoinClick(symbol) {
-    window.location.href = `/coins/${symbol}`;
+    if (typeof onSelectCoin === 'function') {
+      onSelectCoin(symbol);
+    }
   }
 
   function formatTime(date) {
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
     });
@@ -284,8 +260,8 @@ export default function Treemap() {
     );
   }
 
-  const layout = dimensions.width > 0 ? 
-    squarify(coins, 0, 0, dimensions.width, dimensions.height) : 
+  const layout = dimensions.width > 0 ?
+    squarify(coins, 0, 0, dimensions.width, dimensions.height) :
     [];
 
   return (
@@ -365,7 +341,7 @@ export default function Treemap() {
         </div>
       </div>
 
-      <div 
+      <div
         ref={containerRef}
         style={{
           width: '100%',
@@ -413,7 +389,6 @@ export default function Treemap() {
                 }}
                 onClick={() => handleCoinClick(item.symbol)}
               />
-              
               {item.width > 80 && item.height > 50 && (
                 <>
                   <text
@@ -423,8 +398,8 @@ export default function Treemap() {
                     fill="#ffffff"
                     fontSize={Math.min(16, item.width / 5)}
                     fontWeight="800"
-                    style={{ 
-                      pointerEvents: 'none', 
+                    style={{
+                      pointerEvents: 'none',
                       userSelect: 'none',
                       textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                     }}
@@ -438,8 +413,8 @@ export default function Treemap() {
                     fill="#ffffff"
                     fontSize={Math.min(14, item.width / 7)}
                     fontWeight="700"
-                    style={{ 
-                      pointerEvents: 'none', 
+                    style={{
+                      pointerEvents: 'none',
                       userSelect: 'none',
                       textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                     }}
@@ -454,8 +429,8 @@ export default function Treemap() {
                       fill="rgba(255,255,255,0.7)"
                       fontSize={Math.min(11, item.width / 9)}
                       fontWeight="600"
-                      style={{ 
-                        pointerEvents: 'none', 
+                      style={{
+                        pointerEvents: 'none',
                         userSelect: 'none',
                         textShadow: '0 1px 2px rgba(0,0,0,0.5)'
                       }}
@@ -465,7 +440,6 @@ export default function Treemap() {
                   )}
                 </>
               )}
-              
               {item.width > 50 && item.height > 35 && item.width <= 80 && (
                 <>
                   <text
@@ -475,8 +449,8 @@ export default function Treemap() {
                     fill="#ffffff"
                     fontSize={Math.min(13, item.width / 4)}
                     fontWeight="800"
-                    style={{ 
-                      pointerEvents: 'none', 
+                    style={{
+                      pointerEvents: 'none',
                       userSelect: 'none',
                       textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                     }}
@@ -490,8 +464,8 @@ export default function Treemap() {
                     fill="#ffffff"
                     fontSize={Math.min(11, item.width / 6)}
                     fontWeight="700"
-                    style={{ 
-                      pointerEvents: 'none', 
+                    style={{
+                      pointerEvents: 'none',
                       userSelect: 'none',
                       textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                     }}
@@ -500,7 +474,6 @@ export default function Treemap() {
                   </text>
                 </>
               )}
-
               {item.width > 30 && item.height > 25 && item.width <= 50 && (
                 <text
                   x={item.x + item.width / 2}
@@ -509,8 +482,8 @@ export default function Treemap() {
                   fill="#ffffff"
                   fontSize={Math.min(10, item.width / 3.5)}
                   fontWeight="700"
-                  style={{ 
-                    pointerEvents: 'none', 
+                  style={{
+                    pointerEvents: 'none',
                     userSelect: 'none',
                     textShadow: '0 1px 3px rgba(0,0,0,0.5)'
                   }}
