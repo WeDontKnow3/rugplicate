@@ -124,7 +124,7 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
     };
   }, []);
 
-  const WS_URL = import.meta.env.VITE_WS_URL || "wss://devsite-backend-production.up.railway.app";
+  const WS_URL = import.meta.env.VITE_WS_URL || "wss://api-ztdev-rugplicate0193.shardweb.app";
   const MAX_TRADES = 5;
 
   function pushTrade(t) {
