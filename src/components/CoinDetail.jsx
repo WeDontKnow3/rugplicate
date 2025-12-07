@@ -129,7 +129,7 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
   }, [symbol]);
 
   useEffect(() => {
-    const wsUrl = "wss://devsite-backend-production.up.railway.app";
+    const wsUrl = "wss://api-ztdev-rugplicate0193.shardweb.app";
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     ws.onopen = () => {
