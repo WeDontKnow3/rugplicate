@@ -52,7 +52,7 @@ export default function App() {
   const [timeRemaining, setTimeRemaining] = useState(null);
 
   // Unlock date: March 14, 2026 at 12:00 PM Brasília Time (UTC-3)
-  const UNLOCK_DATE = new Date('2026-03-14T12:00:00-03:00');
+  const UNLOCK_DATE = new Date('2026-02-21T12:00:00-03:00');
 
   useEffect(() => {
     const updateCountdown = () => {
