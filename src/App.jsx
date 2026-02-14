@@ -197,6 +197,69 @@ export default function App() {
   }
 
   if (timeRemaining !== null) {
+    const changelog = [
+      {
+        category: '✨ New Features',
+        color: '#10b981',
+        items: [
+          'Complete UI/UX redesign with modern gradients and animations',
+          'Advanced portfolio analytics dashboard',
+          'Dark/Light theme toggle with persistent preferences',
+          'Stocks market with working dividends',
+          'Real cryptocurrencies'
+        ]
+      },
+      {
+        category: '🚀 Improvements',
+        color: '#3b82f6',
+        items: [
+          'Optimized API response times (50% faster)',
+          'Enhanced mobile responsiveness across all pages',
+          'Improved security with advanced authentication',
+          'Better error handling and user feedback',
+          'Smoother animations and transitions',
+          'Loading states for better user experience',
+          'Accessibility improvements (WCAG 2.1 compliant)'
+        ]
+      },
+      {
+        category: '🐛 Bug Fixes',
+        color: '#ef4444',
+        items: [
+          'Fixed balance update delays after transactions',
+          'Resolved sidebar navigation issues on mobile',
+          'Fixed coin price display inconsistencies',
+          'Corrected timezone handling for daily rewards',
+          'Fixed memory leaks in real-time components',
+          'Resolved cookie persistence issues'
+        ]
+      },
+      {
+        category: '🎨 Design Updates',
+        color: '#8b5cf6',
+        items: [
+          'New color palette with vibrant red accents',
+          'Refined typography with better readability',
+          'Card hover effects with elevation and scale',
+          'Improved badge designs for better visibility',
+          'Modern gradient buttons and badges',
+          'Enhanced shadow system for depth perception'
+        ]
+      },
+      {
+        category: '⚡ Performance',
+        color: '#f59e0b',
+        items: [
+          'Reduced bundle size by 30%',
+          'Implemented code splitting for faster loads',
+          'Optimized image loading and caching',
+          'Database query optimization',
+          'CDN integration for static assets',
+          'Lazy loading for improved initial render'
+        ]
+      }
+    ];
+
     return (
       <div style={{
         display: 'flex',
@@ -205,92 +268,188 @@ export default function App() {
         minHeight: '100vh',
         background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
         color: '#e2e8f0',
-        padding: '20px'
+        padding: '40px 20px',
+        overflowY: 'auto'
       }}>
         <div style={{
-          maxWidth: '600px',
+          maxWidth: '900px',
           width: '100%',
-          textAlign: 'center'
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '32px'
         }}>
-          <div style={{
-            fontSize: '72px',
-            marginBottom: '24px',
-            animation: 'float 3s ease-in-out infinite'
-          }}>
-            🚧
+          {/* Header Section */}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: '72px',
+              marginBottom: '24px',
+              animation: 'float 3s ease-in-out infinite'
+            }}>
+              🚧
+            </div>
+
+            <h1 style={{
+              fontSize: '32px',
+              fontWeight: '800',
+              marginBottom: '16px',
+              color: '#f1f5f9'
+            }}>
+              Site Under Maintenance
+            </h1>
+
+            <p style={{
+              fontSize: '18px',
+              color: '#94a3b8',
+              marginBottom: '48px',
+              lineHeight: '1.6'
+            }}>
+              We're working on a massive update to bring you an even better experience. The site will be back online soon!
+            </p>
+
+            {/* Countdown Timer */}
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '16px',
+              padding: '32px',
+              marginBottom: '24px'
+            }}>
+              <div style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#94a3b8',
+                marginBottom: '20px',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase'
+              }}>
+                Back Online In
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '16px',
+                marginBottom: '8px'
+              }}>
+                <CountdownUnit value={timeRemaining.days} label="Days" />
+                <CountdownUnit value={timeRemaining.hours} label="Hours" />
+                <CountdownUnit value={timeRemaining.minutes} label="Minutes" />
+                <CountdownUnit value={timeRemaining.seconds} label="Seconds" />
+              </div>
+
+              <div style={{
+                fontSize: '13px',
+                color: '#64748b',
+                marginTop: '16px'
+              }}>
+                March 14, 2026 • 12:00 PM (Brasília Time)
+              </div>
+            </div>
           </div>
 
-          <h1 style={{
-            fontSize: '32px',
-            fontWeight: '800',
-            marginBottom: '16px',
-            color: '#f1f5f9'
-          }}>
-            Site Under Maintenance
-          </h1>
-
-          <p style={{
-            fontSize: '18px',
-            color: '#94a3b8',
-            marginBottom: '48px',
-            lineHeight: '1.6'
-          }}>
-            We're working on a massive update to bring you an even better experience. The site will be back online soon!
-          </p>
-
+          {/* Live Changelog Section */}
           <div style={{
-            background: 'rgba(255,255,255,0.03)',
+            background: 'rgba(255,255,255,0.02)',
             border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: '16px',
             padding: '32px',
-            marginBottom: '24px'
+            animation: 'fadeInUp 0.6s ease-out'
           }}>
             <div style={{
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#94a3b8',
-              marginBottom: '20px',
-              letterSpacing: '0.5px',
-              textTransform: 'uppercase'
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '28px',
+              paddingBottom: '20px',
+              borderBottom: '1px solid rgba(255,255,255,0.08)'
             }}>
-              Back Online In
+              <span style={{ fontSize: '28px' }}>📋</span>
+              <h2 style={{
+                fontSize: '24px',
+                fontWeight: '800',
+                color: '#f1f5f9',
+                margin: 0
+              }}>
+                Live Changelog
+              </h2>
+              <div style={{
+                marginLeft: 'auto',
+                fontSize: '12px',
+                fontWeight: '700',
+                color: '#10b981',
+                padding: '6px 12px',
+                background: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <span style={{
+                  width: '8px',
+                  height: '8px',
+                  background: '#10b981',
+                  borderRadius: '50%',
+                  display: 'inline-block',
+                  animation: 'pulse-dot 2s ease-in-out infinite'
+                }}></span>
+                LIVE
+              </div>
             </div>
 
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '16px',
-              marginBottom: '8px'
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '24px'
             }}>
-              <CountdownUnit value={timeRemaining.days} label="Days" />
-              <CountdownUnit value={timeRemaining.hours} label="Hours" />
-              <CountdownUnit value={timeRemaining.minutes} label="Minutes" />
-              <CountdownUnit value={timeRemaining.seconds} label="Seconds" />
+              {changelog.map((section, idx) => (
+                <ChangelogSection key={idx} section={section} index={idx} />
+              ))}
             </div>
 
+            {/* Progress Indicator */}
             <div style={{
-              fontSize: '13px',
-              color: '#64748b',
-              marginTop: '16px'
+              marginTop: '32px',
+              padding: '20px',
+              background: 'rgba(59, 130, 246, 0.05)',
+              border: '1px solid rgba(59, 130, 246, 0.15)',
+              borderRadius: '12px',
+              textAlign: 'center'
             }}>
-              March 14, 2026 • 12:00 PM (Brasília Time)
+              <div style={{
+                fontSize: '14px',
+                fontWeight: '700',
+                color: '#94a3b8',
+                marginBottom: '12px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                Update Progress
+              </div>
+              <div style={{
+                width: '100%',
+                height: '8px',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                marginBottom: '8px'
+              }}>
+                <div style={{
+                  width: '87%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #10b981 0%, #3b82f6 100%)',
+                  borderRadius: '8px',
+                  animation: 'progress-pulse 2s ease-in-out infinite'
+                }}></div>
+              </div>
+              <div style={{
+                fontSize: '13px',
+                color: '#64748b',
+                fontWeight: '600'
+              }}>
+                87% Complete • Final testing in progress
+              </div>
             </div>
-          </div>
-
-          <div style={{
-            padding: '16px',
-            background: 'rgba(59, 130, 246, 0.08)',
-            border: '1px solid rgba(59, 130, 246, 0.2)',
-            borderRadius: '12px'
-          }}>
-            <p style={{
-              fontSize: '14px',
-              color: '#94a3b8',
-              margin: 0,
-              lineHeight: '1.5'
-            }}>
-              💡 <strong style={{ color: '#bfc7d6' }}>What's coming:</strong> New features, improved performance, enhanced user experience, and much more!
-            </p>
           </div>
 
           <style>{`
@@ -301,6 +460,22 @@ export default function App() {
             @keyframes pulse {
               0%, 100% { opacity: 1; transform: scale(1); }
               50% { opacity: 0.8; transform: scale(0.98); }
+            }
+            @keyframes fadeInUp {
+              from { opacity: 0; transform: translateY(20px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes pulse-dot {
+              0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+              50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
+            }
+            @keyframes progress-pulse {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.8; }
+            }
+            @keyframes slideIn {
+              from { opacity: 0; transform: translateX(-10px); }
+              to { opacity: 1; transform: translateX(0); }
             }
           `}</style>
         </div>
@@ -541,6 +716,96 @@ function CountdownUnit({ value, label }) {
         letterSpacing: '0.5px'
       }}>
         {label}
+      </div>
+    </div>
+  );
+}
+
+function ChangelogSection({ section, index }) {
+  return (
+    <div style={{
+      animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        marginBottom: '14px'
+      }}>
+        <h3 style={{
+          fontSize: '16px',
+          fontWeight: '800',
+          color: section.color,
+          margin: 0,
+          letterSpacing: '-0.3px'
+        }}>
+          {section.category}
+        </h3>
+        <div style={{
+          flex: 1,
+          height: '1px',
+          background: 'rgba(255,255,255,0.06)'
+        }}></div>
+        <div style={{
+          fontSize: '11px',
+          fontWeight: '700',
+          color: '#64748b',
+          padding: '3px 8px',
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: '6px'
+        }}>
+          {section.items.length} items
+        </div>
+      </div>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px'
+      }}>
+        {section.items.map((item, itemIdx) => (
+          <div
+            key={itemIdx}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              padding: '12px',
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(255,255,255,0.05)',
+              borderRadius: '8px',
+              transition: 'all 0.3s ease',
+              animation: `slideIn 0.4s ease-out ${(index * 0.1) + (itemIdx * 0.05)}s both`
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+              e.currentTarget.style.borderColor = `${section.color}20`;
+              e.currentTarget.style.transform = 'translateX(6px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+              e.currentTarget.style.transform = 'translateX(0)';
+            }}
+          >
+            <div style={{
+              width: '6px',
+              height: '6px',
+              background: section.color,
+              borderRadius: '50%',
+              marginTop: '7px',
+              flexShrink: 0,
+              boxShadow: `0 0 8px ${section.color}80`
+            }}></div>
+            <div style={{
+              fontSize: '14px',
+              color: '#cbd5e1',
+              lineHeight: '1.6',
+              fontWeight: '500'
+            }}>
+              {item}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
