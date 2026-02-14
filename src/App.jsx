@@ -342,7 +342,7 @@ export default function App() {
                 color: '#64748b',
                 marginTop: '16px'
               }}>
-                March 14, 2026 • 12:00 PM (Brasília Time)
+                February 21, 2026 • 12:00 PM (Brasília Time)
               </div>
             </div>
           </div>
