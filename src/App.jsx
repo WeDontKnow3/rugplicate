@@ -447,7 +447,7 @@ export default function App() {
                 color: '#64748b',
                 fontWeight: '600'
               }}>
-                87% Complete • Final testing in progress
+                47% Complete
               </div>
             </div>
           </div>
