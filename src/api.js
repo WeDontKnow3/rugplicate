@@ -1,10 +1,13 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost";
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-  return null;
+  if (parts.length === 2) {
+    const cookieValue = parts.pop().split(';').shift();
+    if (cookieValue) return cookieValue;
+  }
+  return localStorage.getItem(name);
 }
 
 function authHeaders(){
@@ -29,6 +32,110 @@ export async function register(username, password, captchaToken, adminSecret = n
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify(body)
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function p2pDeposit(amount){
+  try{
+    const res = await fetch(`${API_BASE}/api/p2p/deposit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      credentials: "include",
+      body: JSON.stringify({ amount })
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function p2pWithdraw(depositId){
+  try{
+    const res = await fetch(`${API_BASE}/api/p2p/withdraw`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      credentials: "include",
+      body: JSON.stringify({ depositId })
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function p2pRequestLoan(amount, collateralCoinId = null, collateralAmount = null){
+  try{
+    const res = await fetch(`${API_BASE}/api/p2p/request-loan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      credentials: "include",
+      body: JSON.stringify({ amount, collateralCoinId, collateralAmount })
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function p2pRepayLoan(loanId){
+  try{
+    const res = await fetch(`${API_BASE}/api/p2p/repay-loan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      credentials: "include",
+      body: JSON.stringify({ loanId })
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function p2pGetMyDeposits(){
+  try{
+    const res = await fetch(`${API_BASE}/api/p2p/my-deposits`, { 
+      headers: { ...authHeaders() },
+      credentials: "include"
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function p2pGetMyLoans(){
+  try{
+    const res = await fetch(`${API_BASE}/api/p2p/my-loans`, { 
+      headers: { ...authHeaders() },
+      credentials: "include"
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function p2pGetCreditScore(){
+  try{
+    const res = await fetch(`${API_BASE}/api/p2p/credit-score`, { 
+      headers: { ...authHeaders() },
+      credentials: "include"
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function p2pGetStats(){
+  try{
+    const res = await fetch(`${API_BASE}/api/p2p/stats`, { 
+      headers: { ...authHeaders() },
+      credentials: "include"
     });
     return await safeJson(res);
   }catch(e){
@@ -115,6 +222,17 @@ export async function getCoinHolders(symbol){
 export async function listCoins(){
   try{
     const res = await fetch(`${API_BASE}/api/coins`, {
+      credentials: "include"
+    });
+    return await safeJson(res);
+  }catch(e){
+    return { error: e.message || "network_error" };
+  }
+}
+
+export async function listStocks(){
+  try{
+    const res = await fetch(`${API_BASE}/api/coins?type=stocks`, {
       credentials: "include"
     });
     return await safeJson(res);

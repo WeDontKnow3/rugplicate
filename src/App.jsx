@@ -15,8 +15,9 @@ import Gambling from './components/Gambling';
 import Treemap from './components/Treemap';
 import Promocodes from './components/Promocodes';
 import ApiKeyPanel from './components/ApiKeyPanel';
-import Hopium from './components/Hopium';
 import News from './components/News';
+import P2PBank from './components/P2PBank';
+import StockMarket from './components/StockMarket';
 import { useTranslation } from 'react-i18next';
 
 let animId = 1;
@@ -24,17 +25,22 @@ let animId = 1;
 function getCookie(name) {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-  return null;
+  if (parts.length === 2) {
+    const cookieValue = parts.pop().split(';').shift();
+    if (cookieValue) return cookieValue;
+  }
+  return localStorage.getItem(name);
 }
 
 function setCookie(name, value, days = 30) {
   const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
-  document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Strict`;
+  document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
+  localStorage.setItem(name, value);
 }
 
 function deleteCookie(name) {
-  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict`;
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax`;
+  localStorage.removeItem(name);
 }
 
 export default function App() {
@@ -123,31 +129,34 @@ export default function App() {
   }, [user]);
 
   function onLogin(token) {
-    if (token) {
-      setCookie('token', token, 30);
-      loadMe();
-    }
+  if (token) {
+    setCookie('token', token, 30);
+    localStorage.setItem('token', token);
+    loadMe();
   }
+}
 
   function onLogout() {
-    fetch(`${import.meta.env.VITE_API_BASE || 'https://devsite-backend-production.up.railway.app'}/api/logout`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { Authorization: `Bearer ${getCookie('token')}` }
-    }).then(() => {
-      deleteCookie('token');
-      setUser(null);
-      setBalance(null);
-      setView('market');
-      window.location.reload();
-    }).catch(() => {
-      deleteCookie('token');
-      setUser(null);
-      setBalance(null);
-      setView('market');
-      window.location.reload();
-    });
-  }
+  fetch(`${import.meta.env.VITE_API_BASE || 'http://localhost'}/api/logout`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${getCookie('token')}` }
+  }).then(() => {
+    deleteCookie('token');
+    localStorage.removeItem('token');
+    setUser(null);
+    setBalance(null);
+    setView('market');
+    window.location.reload();
+  }).catch(() => {
+    deleteCookie('token');
+    localStorage.removeItem('token');
+    setUser(null);
+    setBalance(null);
+    setView('market');
+    window.location.reload();
+  });
+}
 
   function triggerMoneyAnimation(amount = 0, type = 'down') {
     const id = animId++;
@@ -542,6 +551,7 @@ export default function App() {
           <div className="topbar-center">
             <h1 className="page-title">
               {view === 'market' && t('market')}
+              {view === 'stocks' && 'Brazilian Stocks'}
               {view === 'portfolio' && t('portfolio')}
               {view === 'dashboard' && t('dashboard')}
               {view === 'create' && t('createCoin')}
@@ -556,7 +566,6 @@ export default function App() {
               {view === 'promos' && 'Promocodes'}
               {view === 'notifications' && 'Notifications'}
               {view === 'apikeys' && 'API Keys'}
-              {view === 'hopium' && 'Hopium'}
               {view === 'news' && 'News'}
               {view === 'treemap' && 'Market Treemap'}
             </h1>
@@ -614,6 +623,13 @@ export default function App() {
             />
           )}
 
+          {user && view === 'stocks' && (
+  <StockMarket
+    onOpenStock={(s) => { setSelectedCoin(s); setView('detail'); }}
+    onActionComplete={handleActionComplete}
+  />
+)}
+
           {user && view === 'dashboard' && (
             <Dashboard onActionComplete={handleActionComplete} />
           )}
@@ -659,9 +675,9 @@ export default function App() {
             <Gambling onBack={() => setView('market')} onActionComplete={handleActionComplete} />
           )}
 
-          {user && view === 'hopium' && (
-            <Hopium onActionComplete={handleActionComplete} />
-          )}
+          {user && view === 'p2pbank' && (
+  <P2PBank onActionComplete={handleActionComplete} />
+)}
 
           {user && view === 'news' && (
             <News />

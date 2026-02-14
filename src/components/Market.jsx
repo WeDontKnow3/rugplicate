@@ -227,6 +227,7 @@ export default function Market({ onOpenCoin, onActionComplete }) {
 
         {currentCoins.map(c => {
           const logoUrl = getLogoUrl(c);
+          const isReal = c.is_real;
 
           return (
             <div key={c.symbol} className="market-item fade-in">
@@ -240,17 +241,32 @@ export default function Market({ onOpenCoin, onActionComplete }) {
                 )}
 
                 <div style={{display:'flex',flexDirection:'column'}}>
-                  <button className="link-btn" onClick={() => onOpenCoin(c.symbol)} style={{ color: '#fff', ...(theme === 'light' ? lightOutline : {}) }}>
-                    {c.symbol}
-                  </button>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <button className="link-btn" onClick={() => onOpenCoin(c.symbol)} style={{ color: '#fff', ...(theme === 'light' ? lightOutline : {}) }}>
+                      {c.symbol}
+                    </button>
+                    {isReal && (
+                      <span style={{
+                        fontSize:10,
+                        fontWeight:700,
+                        padding:'2px 6px',
+                        borderRadius:4,
+                        background:'rgba(34,197,94,0.1)',
+                        color:'#22c55e',
+                        border:'1px solid rgba(34,197,94,0.2)'
+                      }}>REAL</span>
+                    )}
+                  </div>
                   <div className="name">{c.name}</div>
 
-                  <div className="muted" style={{marginTop:6}}>
-                    {t('poolLabel', {
-                      base: Number(c.liquidity_base || 0).toFixed(4),
-                      token: Number(c.liquidity_token || 0).toLocaleString()
-                    })}
-                  </div>
+                  {!isReal && (
+                    <div className="muted" style={{marginTop:6}}>
+                      {t('poolLabel', {
+                        base: Number(c.liquidity_base || 0).toFixed(4),
+                        token: Number(c.liquidity_token || 0).toLocaleString()
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 

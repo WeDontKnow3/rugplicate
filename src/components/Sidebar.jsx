@@ -3,8 +3,11 @@ import React, { useEffect, useState, useRef } from 'react';
 function getCookie(name) {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-  return null;
+  if (parts.length === 2) {
+    const cookieValue = parts.pop().split(';').shift();
+    if (cookieValue) return cookieValue;
+  }
+  return localStorage.getItem(name);
 }
 
 export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
@@ -218,20 +221,22 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
   }
 
   function handleLogout() {
-    fetch(`${import.meta.env.VITE_API_BASE || 'https://devsite-backend-production.up.railway.app'}/api/logout`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { Authorization: `Bearer ${getCookie('token')}` }
-    }).then(() => {
-      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict';
-      if (onLogout && typeof onLogout === 'function') onLogout();
-      else window.location.reload();
-    }).catch(() => {
-      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict';
-      if (onLogout && typeof onLogout === 'function') onLogout();
-      else window.location.reload();
-    });
-  }
+  fetch(`${import.meta.env.VITE_API_BASE || 'https://devsite-backend-production.up.railway.app'}/api/logout`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${getCookie('token')}` }
+  }).then(() => {
+    document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
+    localStorage.removeItem('token');
+    if (onLogout && typeof onLogout === 'function') onLogout();
+    else window.location.reload();
+  }).catch(() => {
+    document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
+    localStorage.removeItem('token');
+    if (onLogout && typeof onLogout === 'function') onLogout();
+    else window.location.reload();
+  });
+}
 
   function formatTimeRemaining(seconds) {
     if (!seconds || seconds <= 0) return 'Ready!';
@@ -267,7 +272,8 @@ export default function Sidebar({ view, onNavigate, onLogout, open, setOpen }) {
         <nav className="sidebar-nav">
           <NavItem active={view === 'dashboard'} label="Home" onClick={() => navigate('dashboard')} icon="home" />
           <NavItem active={view === 'market'} label="Market" onClick={() => navigate('market')} icon="market" />
-          <NavItem active={view === 'hopium'} label="Hopium" onClick={() => navigate('hopium')} icon="hopium" />
+          <NavItem active={view === 'stocks'} label="Stocks" onClick={() => navigate('stocks')} icon="stocks" />
+          <NavItem active={view === 'p2pbank'} label="P2P Bank" onClick={() => navigate('p2pbank')} icon="bank" />
           <NavItem active={view === 'gambling'} label="Gambling" onClick={() => navigate('gambling')} icon="gambling" />
           <NavItem active={view === 'leaderboard'} label="Leaderboard" onClick={() => navigate('leaderboard')} icon="leaderboard" />
           <NavItem active={view === 'portfolio'} label="Portfolio" onClick={() => navigate('portfolio')} icon="portfolio" />
@@ -397,12 +403,20 @@ function Icon({ name }) {
           <rect x="14" y="14" width="7" height="7" rx="1" fill="currentColor"/>
         </svg>
       );
-    case 'hopium':
-      return (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M2 12h4l3-9 4 18 3-9h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-        </svg>
-      );
+    case 'stocks':
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 3v18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <path d="M7 12l4-4 4 4 4-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    </svg>
+  );
+    case 'bank':
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" fill="none"/>
+      <path d="M9 21V12h6v9" stroke="currentColor" strokeWidth="2"/>
+    </svg>
+  );
     case 'gambling':
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

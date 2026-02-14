@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 
 function setCookie(name, value, days = 30) {
   const expires = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toUTCString();
-  document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Strict`;
+  document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
+  localStorage.setItem(name, value);
 }
 
 export default function Auth({ onLogin }) {

@@ -30,6 +30,9 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [isRealCoin, setIsRealCoin] = useState(false);
+  const [isStock, setIsStock] = useState(false);
+  const [dividends, setDividends] = useState([]);
   const [postingComment, setPostingComment] = useState(false);
   const [confirmSettings, setConfirmSettings] = useState({
     enabled: false,
@@ -97,21 +100,25 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
   }
 
   async function load() {
-    setLoadingCoin(true);
-    setMsg('');
-    try {
-      const r = await api.getCoin(symbol);
-      if (r?.coin) setCoin(r.coin);
-      else {
-        setCoin(null);
-        setMsg(r?.error || t('coinNotFound'));
-      }
-    } catch (e) {
+  setLoadingCoin(true);
+  setMsg('');
+  try {
+    const r = await api.getCoin(symbol);
+    if (r?.coin) {
+      setCoin(r.coin);
+      setIsRealCoin(r.coin.is_real || false);
+      setIsStock(r.coin.is_stock || false);
+      setDividends(r.coin.dividends || []);
+    } else {
       setCoin(null);
-      setMsg(t('coinLoadError'));
-      console.error(e);
-    } finally { setLoadingCoin(false); }
-  }
+      setMsg(r?.error || t('coinNotFound'));
+    }
+  } catch (e) {
+    setCoin(null);
+    setMsg(t('coinLoadError'));
+    console.error(e);
+  } finally { setLoadingCoin(false); }
+}
 
   async function loadHistory() {
     try {
@@ -373,20 +380,21 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
 
       {!loadingCoin && coin && (
         <>
-          <div className="card">
-            <strong>{coin.name}</strong>
-            <div className="row" style={{marginTop:8}}>
-              <div>{t('price')}: <strong ref={priceElRef}>{coin.price===null?'—':`$${Number(coin.price).toFixed(8)}`}</strong></div>
-              <div className="muted">{t('poolBase')}: {Number(coin.pool_base).toFixed(6)}</div>
-              <div className="muted">{t('poolToken')}: {Number(coin.pool_token).toLocaleString()}</div>
-              <div style={{marginLeft:12}}>
-                <div className={coin.change24h>0?'flash-up':coin.change24h<0?'flash-down':''} style={{fontWeight:700}}>
-                  {coin.change24h==null?'—':`${coin.change24h.toFixed(2)}%`}
-                </div>
-                <div className="small muted">{t('volume24h')}: {coin.volume24h!=null?`$${Number(coin.volume24h).toFixed(2)}`:'—'}</div>
-              </div>
-            </div>
-          </div>
+          <div className="row" style={{marginTop:8}}>
+  <div>{t('price')}: <strong ref={priceElRef}>{coin.price===null?'—':`$${Number(coin.price).toFixed(8)}`}</strong></div>
+  {!isRealCoin && !isStock && (
+  <>
+    <div className="muted">{t('poolBase')}: {Number(coin.pool_base).toFixed(6)}</div>
+    <div className="muted">{t('poolToken')}: {Number(coin.pool_token).toLocaleString()}</div>
+  </>
+)}
+  <div style={{marginLeft:12}}>
+    <div className={coin.change24h>0?'flash-up':coin.change24h<0?'flash-down':''} style={{fontWeight:700}}>
+      {coin.change24h==null?'—':`${coin.change24h.toFixed(2)}%`}
+    </div>
+    <div className="small muted">{t('volume24h')}: {coin.volume24h!=null?`$${Number(coin.volume24h).toFixed(2)}`:'—'}</div>
+  </div>
+</div>
 
           <div className="card">
             <h3>{t('price24hTitle')}</h3>
@@ -521,6 +529,33 @@ export default function CoinDetail({ symbol, onBack, onActionComplete }) {
               </div>
             )}
           </div>
+
+          {isStock && dividends.length > 0 && (
+  <div className="card">
+    <h3>Dividend History</h3>
+    <div style={{display:'flex',flexDirection:'column',gap:12,marginTop:12}}>
+      {dividends.map((div, idx) => (
+        <div key={idx} style={{
+          padding:12,
+          background:'rgba(16,185,129,0.05)',
+          border:'1px solid rgba(16,185,129,0.1)',
+          borderRadius:8
+        }}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+            <span style={{fontWeight:700,color:'#10b981'}}>R${div.rate.toFixed(2)}</span>
+            <span style={{fontSize:11,color:'#10b981',fontWeight:600}}>{div.label}</span>
+          </div>
+          <div style={{fontSize:12,color:'#94a3b8'}}>
+            {div.related_to}
+          </div>
+          <div style={{fontSize:11,color:'#64748b',marginTop:4}}>
+            Payment: {new Date(div.payment_date).toLocaleDateString()}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
           <div className="card">
             <h3>Comments</h3>
