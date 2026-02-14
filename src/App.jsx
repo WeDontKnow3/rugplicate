@@ -196,7 +196,6 @@ export default function App() {
     return `${minutes}m`;
   }
 
-  // Show maintenance screen if site is still locked
   if (timeRemaining !== null) {
     return (
       <div style={{
