@@ -49,6 +49,33 @@ export default function App() {
   const [dailyStatus, setDailyStatus] = useState(null);
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [timeRemaining, setTimeRemaining] = useState(null);
+
+  // Unlock date: March 14, 2026 at 12:00 PM Brasília Time (UTC-3)
+  const UNLOCK_DATE = new Date('2026-03-14T12:00:00-03:00');
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date();
+      const diff = UNLOCK_DATE - now;
+      
+      if (diff <= 0) {
+        setTimeRemaining(null);
+      } else {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        
+        setTimeRemaining({ days, hours, minutes, seconds });
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   async function loadMe() {
     try {
@@ -167,6 +194,119 @@ export default function App() {
     const minutes = Math.floor((seconds % 3600) / 60);
     if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes}m`;
+  }
+
+  // Show maintenance screen if site is still locked
+  if (timeRemaining !== null) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+        color: '#e2e8f0',
+        padding: '20px'
+      }}>
+        <div style={{
+          maxWidth: '600px',
+          width: '100%',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            fontSize: '72px',
+            marginBottom: '24px',
+            animation: 'float 3s ease-in-out infinite'
+          }}>
+            🚧
+          </div>
+
+          <h1 style={{
+            fontSize: '32px',
+            fontWeight: '800',
+            marginBottom: '16px',
+            color: '#f1f5f9'
+          }}>
+            Site Under Maintenance
+          </h1>
+
+          <p style={{
+            fontSize: '18px',
+            color: '#94a3b8',
+            marginBottom: '48px',
+            lineHeight: '1.6'
+          }}>
+            We're working on a massive update to bring you an even better experience. The site will be back online soon!
+          </p>
+
+          <div style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '16px',
+            padding: '32px',
+            marginBottom: '24px'
+          }}>
+            <div style={{
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#94a3b8',
+              marginBottom: '20px',
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase'
+            }}>
+              Back Online In
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '16px',
+              marginBottom: '8px'
+            }}>
+              <CountdownUnit value={timeRemaining.days} label="Days" />
+              <CountdownUnit value={timeRemaining.hours} label="Hours" />
+              <CountdownUnit value={timeRemaining.minutes} label="Minutes" />
+              <CountdownUnit value={timeRemaining.seconds} label="Seconds" />
+            </div>
+
+            <div style={{
+              fontSize: '13px',
+              color: '#64748b',
+              marginTop: '16px'
+            }}>
+              March 14, 2026 • 12:00 PM (Brasília Time)
+            </div>
+          </div>
+
+          <div style={{
+            padding: '16px',
+            background: 'rgba(59, 130, 246, 0.08)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            borderRadius: '12px'
+          }}>
+            <p style={{
+              fontSize: '14px',
+              color: '#94a3b8',
+              margin: 0,
+              lineHeight: '1.5'
+            }}>
+              💡 <strong style={{ color: '#bfc7d6' }}>What's coming:</strong> New features, improved performance, enhanced user experience, and much more!
+            </p>
+          </div>
+
+          <style>{`
+            @keyframes float {
+              0%, 100% { transform: translateY(0px); }
+              50% { transform: translateY(-10px); }
+            }
+            @keyframes pulse {
+              0%, 100% { opacity: 1; transform: scale(1); }
+              50% { opacity: 0.8; transform: scale(0.98); }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
   }
 
   if (initializing) {
@@ -369,6 +509,39 @@ export default function App() {
         <footer className="app-footer">
           <small>{t('footer')}</small>
         </footer>
+      </div>
+    </div>
+  );
+}
+
+function CountdownUnit({ value, label }) {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px'
+    }}>
+      <div style={{
+        fontSize: '36px',
+        fontWeight: '800',
+        color: '#f1f5f9',
+        padding: '16px',
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: '12px',
+        minWidth: '80px',
+        animation: 'pulse 2s ease-in-out infinite'
+      }}>
+        {String(value).padStart(2, '0')}
+      </div>
+      <div style={{
+        fontSize: '12px',
+        fontWeight: '600',
+        color: '#64748b',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+      }}>
+        {label}
       </div>
     </div>
   );
